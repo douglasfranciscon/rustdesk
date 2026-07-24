@@ -5,6 +5,11 @@ on:
     # schedule build every night
     - cron: "0 0 * * *"
   workflow_dispatch:
+    inputs:
+      windows-only:
+        description: "Build only Windows (skip Android/Linux/macOS/iOS/web)"
+        type: boolean
+        default: false
 
 jobs:
   run-flutter-nightly-build:
@@ -13,3 +18,4 @@ jobs:
     with:
       upload-artifact: true
       upload-tag: "nightly"
+      windows-only: ${{ inputs.windows-only == true }}
