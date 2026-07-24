@@ -118,6 +118,21 @@ jobs:
         with:
           submodules: recursive
 
+      # CUSTOM BRANDING: bake this fork's own rendezvous server/pubkey into the build.
+      # Values come from repo Secrets (never committed) so this stays safe on a public fork.
+      - name: Patch custom rendezvous server
+        shell: bash
+        run: |
+          sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
+          # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
+          # access from this fork), so APP_NAME can't be committed there directly - patch it
+          # here instead, same as the two constants above.
+          sed -i 's#pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());#pub static ref APP_NAME: RwLock<String> = RwLock::new("BR Suporte".to_owned());#' libs/hbb_common/src/config.rs
+          # No compile-time default exists for the API server (it's normally derived at runtime
+          # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
+          sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -996,6 +1011,21 @@ jobs:
         with:
           submodules: recursive
 
+      # CUSTOM BRANDING: bake this fork's own rendezvous server/pubkey into the build.
+      # Values come from repo Secrets (never committed) so this stays safe on a public fork.
+      - name: Patch custom rendezvous server
+        shell: bash
+        run: |
+          sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
+          # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
+          # access from this fork), so APP_NAME can't be committed there directly - patch it
+          # here instead, same as the two constants above.
+          sed -i 's#pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());#pub static ref APP_NAME: RwLock<String> = RwLock::new("BR Suporte".to_owned());#' libs/hbb_common/src/config.rs
+          # No compile-time default exists for the API server (it's normally derived at runtime
+          # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
+          sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -1267,6 +1297,21 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      # CUSTOM BRANDING: bake this fork's own rendezvous server/pubkey into the build.
+      # Values come from repo Secrets (never committed) so this stays safe on a public fork.
+      - name: Patch custom rendezvous server
+        shell: bash
+        run: |
+          sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
+          # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
+          # access from this fork), so APP_NAME can't be committed there directly - patch it
+          # here instead, same as the two constants above.
+          sed -i 's#pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());#pub static ref APP_NAME: RwLock<String> = RwLock::new("BR Suporte".to_owned());#' libs/hbb_common/src/config.rs
+          # No compile-time default exists for the API server (it's normally derived at runtime
+          # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
+          sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
 
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2

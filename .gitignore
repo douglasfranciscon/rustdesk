@@ -17,6 +17,9 @@ cert.pfx
 *png
 *svg
 *jpg
+# CUSTOM BRANDING: needed so the Flutter UI logo (flutter/lib/common.dart's loadIcon())
+# picks up our icon.png instead of falling back to the stock icon.svg.
+!flutter/assets/icon.png
 sciter.dll
 **pdb
 src/bridge_generated.rs
