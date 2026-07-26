@@ -20,6 +20,9 @@ cert.pfx
 # CUSTOM BRANDING: needed so the Flutter UI logo (flutter/lib/common.dart's loadIcon())
 # picks up our icon.png instead of falling back to the stock icon.svg.
 !flutter/assets/icon.png
+# CUSTOM BRANDING: banner logo shown by loadLogo() on the desktop home page and
+# mobile settings header (flutter/lib/common.dart).
+!flutter/assets/logo.png
 sciter.dll
 **pdb
 src/bridge_generated.rs

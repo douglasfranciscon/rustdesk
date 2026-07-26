@@ -2437,6 +2437,7 @@ class _AboutState extends State<_About> {
               const SizedBox(
                 height: 8.0,
               ),
+              loadIcon(64).marginSymmetric(vertical: 4.0),
               SelectionArea(
                   child: Text('${translate('Version')}: $version')
                       .marginSymmetric(vertical: 4.0)),
@@ -2449,15 +2450,7 @@ class _AboutState extends State<_About> {
                         .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
-                  },
-                  child: Text(
-                    translate('Privacy Statement'),
-                    style: linkStyle,
-                  ).marginSymmetric(vertical: 4.0)),
-              InkWell(
-                  onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://www.brproj.com.br');
                   },
                   child: Text(
                     translate('Website'),
@@ -2475,7 +2468,7 @@ class _AboutState extends State<_About> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
+                            'Feito pela BR PROJ a partir do Rustdesk\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(
