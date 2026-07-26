@@ -360,7 +360,7 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/BRSuporte.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRSuporte-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
@@ -377,8 +377,8 @@ jobs:
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
-          mv $msi.FullName ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
-          sha256sum ../../SignOutput/rustdesk-*.msi
+          mv $msi.FullName ../../SignOutput/BRSuporte-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
+          sha256sum ../../SignOutput/BRSuporte-*.msi
 
       - name: Sign rustdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
@@ -393,8 +393,8 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ./SignOutput/rustdesk-*.msi
-            ./SignOutput/rustdesk-*.exe
+            ./SignOutput/BRSuporte-*.msi
+            ./SignOutput/BRSuporte-*.exe
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
@@ -429,6 +429,21 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      # CUSTOM BRANDING: bake this fork's own rendezvous server/pubkey into the build.
+      # Values come from repo Secrets (never committed) so this stays safe on a public fork.
+      - name: Patch custom rendezvous server
+        shell: bash
+        run: |
+          sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
+          # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
+          # access from this fork), so APP_NAME can't be committed there directly - patch it
+          # here instead, same as the two constants above.
+          sed -i 's#pub static ref APP_NAME: RwLock<String> = RwLock::new("RustDesk".to_owned());#pub static ref APP_NAME: RwLock<String> = RwLock::new("BRSuporte".to_owned());#' libs/hbb_common/src/config.rs
+          # No compile-time default exists for the API server (it's normally derived at runtime
+          # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
+          sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
 
       - name: Install LLVM and Clang
         uses: rustdesk-org/install-llvm-action-32bit@6aa7d9ad3df84dff01cd4596dd0fc880a7f47fce # no release tag; commit 2026-05-26
@@ -483,7 +498,7 @@ jobs:
           cargo update -p sciter-rs --precise 674e07d3066ca9a92ced3816203ab6b652629d1e
           cargo build --locked --features inline,vram,hwcodec --release --bins
           mkdir -p ./Release
-          mv ./target/release/rustdesk.exe ./Release/rustdesk.exe
+          mv ./target/release/rustdesk.exe ./Release/BRSuporte.exe
           curl -LJ -o ./Release/sciter.dll https://github.com/c-smile/sciter-sdk/raw/master/bin.win/x32/sciter.dll
           echo "output_folder=./Release" >> $GITHUB_OUTPUT
           curl -LJ -o ./usbmmidd_v2.zip https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip
@@ -530,10 +545,10 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../Release/ -o . -e ../../Release/rustdesk.exe
+          python3 ./generate.py -f ../../Release/ -o . -e ../../Release/BRSuporte.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRSuporte-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
 
       - name: Sign rustdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
@@ -548,7 +563,7 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ./SignOutput/rustdesk-*.exe
+            ./SignOutput/BRSuporte-*.exe
 
   build-rustdesk-ios:
     if: ${{ inputs.upload-artifact && !inputs.windows-only }}
