@@ -1,4 +1,4 @@
-package br.com.brproj.suporte
+package br.com.brproj.remote
 
 import ffi.FFI
 

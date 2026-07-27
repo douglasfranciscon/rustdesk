@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">BRSuporte</string>
-    <string name="accessibility_service_description">Allow other devices to control your phone using virtual touch, when BRSuporte screen sharing is established</string>
+    <string name="app_name">BR Remote</string>
+    <string name="accessibility_service_description">Allow other devices to control your phone using virtual touch, when BR Remote screen sharing is established</string>
 </resources>

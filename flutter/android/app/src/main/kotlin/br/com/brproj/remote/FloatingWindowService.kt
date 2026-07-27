@@ -1,4 +1,4 @@
-package br.com.brproj.suporte
+package br.com.brproj.remote
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
