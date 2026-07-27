@@ -62,3 +62,21 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
 - Instalar/rodar o `.msi` ou `.exe` numa máquina de teste
 - Confirmar nome "BRSuporte" e ícone corretos
 - Gerar um ID e testar conexão real com o servidor próprio
+
+## 6. Assinar o Windows (.exe / .msi) manualmente
+
+O `.exe`/`.msi` que sai do CI **não é assinado** — o mecanismo de assinatura do workflow (`res/job.py`, secrets `SIGN_BASE_URL`/`SIGN_SECRET_KEY`) espera um servidor de assinatura HTTP próprio, que não existe aqui. Além disso, o certificado de code-signing fica num token/HSM de hardware, que uma máquina virtual do GitHub Actions não consegue acessar — então essa assinatura precisa ser feita manualmente, na máquina onde o token está conectado.
+
+Passo a passo, depois de baixar `BRSuporte-<versão>-x86_64.exe`/`.msi` da aba Releases:
+
+1. Conecte o token/HSM do certificado.
+2. Abra um terminal com o `signtool.exe` no PATH (vem com o Windows SDK).
+3. Rode, pra cada arquivo:
+   ```
+   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRSuporte-<versão>-x86_64.exe"
+   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRSuporte-<versão>-x86_64.msi"
+   ```
+   - `/a` escolhe automaticamente o certificado de assinatura de código disponível (vai pedir a senha/PIN do token).
+   - Troque a URL do `/tr` pelo servidor de timestamp da sua CA, se for diferente.
+4. Confirme a assinatura: botão direito no arquivo → Propriedades → aba "Assinaturas Digitais".
+5. Substitua os arquivos não assinados na Release (ou distribua os assinados separadamente).
