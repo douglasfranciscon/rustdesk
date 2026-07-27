@@ -138,6 +138,13 @@ jobs:
           # No compile-time default exists for the API server (it's normally derived at runtime
           # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
           sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+          # Client wants the temporary password to stay put across app/service
+          # restarts, changing only via the refresh button or the too-many-failures
+          # auto-rotation (both already call update_temporary_password()) - so persist
+          # it to the options store instead of regenerating it on every process start.
+          # password_security.rs lives in the same no-push-access submodule as above.
+          sed -i 's#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new(get_auto_password()));#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new({ let s = Config::get_option("stored-temporary-password"); if s.is_empty() { let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); p } else { s } }));#' libs/hbb_common/src/password_security.rs
+          sed -i 's#\*TEMPORARY_PASSWORD.write().unwrap() = get_auto_password();#{ let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); *TEMPORARY_PASSWORD.write().unwrap() = p; }#' libs/hbb_common/src/password_security.rs
 
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -444,6 +451,13 @@ jobs:
           # No compile-time default exists for the API server (it's normally derived at runtime
           # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
           sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+          # Client wants the temporary password to stay put across app/service
+          # restarts, changing only via the refresh button or the too-many-failures
+          # auto-rotation (both already call update_temporary_password()) - so persist
+          # it to the options store instead of regenerating it on every process start.
+          # password_security.rs lives in the same no-push-access submodule as above.
+          sed -i 's#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new(get_auto_password()));#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new({ let s = Config::get_option("stored-temporary-password"); if s.is_empty() { let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); p } else { s } }));#' libs/hbb_common/src/password_security.rs
+          sed -i 's#\*TEMPORARY_PASSWORD.write().unwrap() = get_auto_password();#{ let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); *TEMPORARY_PASSWORD.write().unwrap() = p; }#' libs/hbb_common/src/password_security.rs
 
       - name: Install LLVM and Clang
         uses: rustdesk-org/install-llvm-action-32bit@6aa7d9ad3df84dff01cd4596dd0fc880a7f47fce # no release tag; commit 2026-05-26
@@ -1050,6 +1064,13 @@ jobs:
           # No compile-time default exists for the API server (it's normally derived at runtime
           # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
           sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+          # Client wants the temporary password to stay put across app/service
+          # restarts, changing only via the refresh button or the too-many-failures
+          # auto-rotation (both already call update_temporary_password()) - so persist
+          # it to the options store instead of regenerating it on every process start.
+          # password_security.rs lives in the same no-push-access submodule as above.
+          sed -i 's#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new(get_auto_password()));#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new({ let s = Config::get_option("stored-temporary-password"); if s.is_empty() { let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); p } else { s } }));#' libs/hbb_common/src/password_security.rs
+          sed -i 's#\*TEMPORARY_PASSWORD.write().unwrap() = get_auto_password();#{ let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); *TEMPORARY_PASSWORD.write().unwrap() = p; }#' libs/hbb_common/src/password_security.rs
 
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -1337,6 +1358,13 @@ jobs:
           # No compile-time default exists for the API server (it's normally derived at runtime
           # or left empty -> falls back to RustDesk's own admin.rustdesk.com); pin our own here.
           sed -i 's#"https://admin.rustdesk.com".to_owned()#"${{ secrets.API_SERVER }}".to_owned()#' src/common.rs
+          # Client wants the temporary password to stay put across app/service
+          # restarts, changing only via the refresh button or the too-many-failures
+          # auto-rotation (both already call update_temporary_password()) - so persist
+          # it to the options store instead of regenerating it on every process start.
+          # password_security.rs lives in the same no-push-access submodule as above.
+          sed -i 's#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new(get_auto_password()));#pub static ref TEMPORARY_PASSWORD:Arc<RwLock<String>> = Arc::new(RwLock::new({ let s = Config::get_option("stored-temporary-password"); if s.is_empty() { let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); p } else { s } }));#' libs/hbb_common/src/password_security.rs
+          sed -i 's#\*TEMPORARY_PASSWORD.write().unwrap() = get_auto_password();#{ let p = get_auto_password(); Config::set_option("stored-temporary-password".to_owned(), p.clone()); *TEMPORARY_PASSWORD.write().unwrap() = p; }#' libs/hbb_common/src/password_security.rs
 
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
