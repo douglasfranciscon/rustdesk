@@ -1,4 +1,4 @@
-# Como gerar o instalador (BRSuporte)
+# Como gerar o instalador (BR Remote)
 
 Guia rápido pra gerar o `.exe`/`.msi` do Windows (e opcionalmente o `.apk` do Android) a partir deste fork, usando o GitHub Actions — não precisa instalar nada localmente.
 
@@ -27,7 +27,7 @@ Pra (re)cadastrar os 4 secrets acima:
 2. `ANDROID_SIGNING_KEY` = conteúdo de `brsuporte-release.jks.base64.txt`.
 3. Os outros 3 valores (alias + 2 senhas) estão em `README-secrets.txt`.
 
-**Nunca** commitar o keystore ou as senhas neste repositório (rustdesk) — só no `br-suporte-secrets`. Perder o keystore significa que ninguém que já instalou o BRSuporte consegue receber uma atualização in-place nunca mais (só desinstalando e reinstalando do zero).
+**Nunca** commitar o keystore ou as senhas neste repositório (rustdesk) — só no `br-suporte-secrets`. Perder o keystore significa que ninguém que já instalou o BR Remote consegue receber uma atualização in-place nunca mais (só desinstalando e reinstalando do zero).
 
 Sem esses 4 secrets configurados, o workflow ainda funciona, mas publica o `.apk` sem assinatura (`Publish unsigned apk package`).
 
@@ -53,28 +53,28 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
 
 - **Aba "Artifacts"** (embaixo da página da run) → `rustdesk-unsigned-windows-x86_64.zip` (e aarch64) — é só a pasta crua do build (exe + dlls soltos), útil pra debug, **não é o instalador**.
 - **Aba "Releases"** do repositório (`github.com/douglasfranciscon/rustdesk/releases`) → uma release pré-lançamento chamada **"nightly"** com os arquivos de verdade pra distribuir:
-  - `BRSuporte-<versão>-x86_64.exe` → executável autoextraível, arquivo único
-  - `BRSuporte-<versão>-x86_64.msi` → instalador Windows
-  - (se Android rodou) `BRSuporte-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
+  - `BRRemote-<versão>-x86_64.exe` → executável autoextraível, arquivo único
+  - `BRRemote-<versão>-x86_64.msi` → instalador Windows
+  - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
 
 ## 5. Testar
 
 - Instalar/rodar o `.msi` ou `.exe` numa máquina de teste
-- Confirmar nome "BRSuporte" e ícone corretos
+- Confirmar nome "BR Remote" e ícone corretos
 - Gerar um ID e testar conexão real com o servidor próprio
 
 ## 6. Assinar o Windows (.exe / .msi) manualmente
 
 O `.exe`/`.msi` que sai do CI **não é assinado** — o mecanismo de assinatura do workflow (`res/job.py`, secrets `SIGN_BASE_URL`/`SIGN_SECRET_KEY`) espera um servidor de assinatura HTTP próprio, que não existe aqui. Além disso, o certificado de code-signing fica num token/HSM de hardware, que uma máquina virtual do GitHub Actions não consegue acessar — então essa assinatura precisa ser feita manualmente, na máquina onde o token está conectado.
 
-Passo a passo, depois de baixar `BRSuporte-<versão>-x86_64.exe`/`.msi` da aba Releases:
+Passo a passo, depois de baixar `BRRemote-<versão>-x86_64.exe`/`.msi` da aba Releases:
 
 1. Conecte o token/HSM do certificado.
 2. Abra um terminal com o `signtool.exe` no PATH (vem com o Windows SDK).
 3. Rode, pra cada arquivo:
    ```
-   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRSuporte-<versão>-x86_64.exe"
-   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRSuporte-<versão>-x86_64.msi"
+   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.exe"
+   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.msi"
    ```
    - `/a` escolhe automaticamente o certificado de assinatura de código disponível (vai pedir a senha/PIN do token).
    - Troque a URL do `/tr` pelo servidor de timestamp da sua CA, se for diferente.
