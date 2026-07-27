@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package br.com.brproj.suporte
 
 /**
  * Handle events from flutter

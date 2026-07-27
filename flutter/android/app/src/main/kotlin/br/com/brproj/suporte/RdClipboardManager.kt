@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package br.com.brproj.suporte
 
 import java.nio.ByteBuffer
 import java.util.Timer
