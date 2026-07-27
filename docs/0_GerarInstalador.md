@@ -4,15 +4,32 @@ Guia rápido pra gerar o `.exe`/`.msi` do Windows (e opcionalmente o `.apk` do A
 
 ## 1. Pré-requisitos (já configurados, só conferir se algo mudar)
 
-No fork, em **Settings → Secrets and variables → Actions**, devem existir 3 secrets:
+No fork, em **Settings → Secrets and variables → Actions**, devem existir estes secrets:
 
 | Secret | O que é |
 |---|---|
 | `RENDEZVOUS_SERVER` | Domínio/IP do servidor hbbs |
 | `RS_PUB_KEY` | Chave pública do hbbs (base64, arquivo `id_ed25519.pub`) |
 | `API_SERVER` | URL da API (se usar recursos de conta/address book) |
+| `ANDROID_SIGNING_KEY` | Keystore Android em base64, pra assinar o `.apk` (ver "Assinatura do Android" abaixo) |
+| `ANDROID_ALIAS` | Alias da chave dentro do keystore |
+| `ANDROID_KEY_STORE_PASSWORD` | Senha do keystore |
+| `ANDROID_KEY_PASSWORD` | Senha da chave |
 
 E em **Settings → Actions → General → Workflow permissions**, precisa estar marcado **"Read and write permissions"** (sem isso, a etapa que publica a release falha com erro 403).
+
+### Assinatura do Android
+
+O keystore usado pra assinar o `.apk` (RSA 2048, autoassinado, válido até 2056) **não fica neste repositório** (que é público) — ele está guardado no repositório privado [br-suporte-secrets](https://github.com/douglasfranciscon/br-suporte-secrets), junto com um `README-secrets.txt` com o alias e as duas senhas.
+
+Pra (re)cadastrar os 4 secrets acima:
+1. Clone/acesse o `br-suporte-secrets` (privado).
+2. `ANDROID_SIGNING_KEY` = conteúdo de `brsuporte-release.jks.base64.txt`.
+3. Os outros 3 valores (alias + 2 senhas) estão em `README-secrets.txt`.
+
+**Nunca** commitar o keystore ou as senhas neste repositório (rustdesk) — só no `br-suporte-secrets`. Perder o keystore significa que ninguém que já instalou o BRSuporte consegue receber uma atualização in-place nunca mais (só desinstalando e reinstalando do zero).
+
+Sem esses 4 secrets configurados, o workflow ainda funciona, mas publica o `.apk` sem assinatura (`Publish unsigned apk package`).
 
 ## 2. Rodar o workflow
 
@@ -36,9 +53,9 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
 
 - **Aba "Artifacts"** (embaixo da página da run) → `rustdesk-unsigned-windows-x86_64.zip` (e aarch64) — é só a pasta crua do build (exe + dlls soltos), útil pra debug, **não é o instalador**.
 - **Aba "Releases"** do repositório (`github.com/douglasfranciscon/rustdesk/releases`) → uma release pré-lançamento chamada **"nightly"** com os arquivos de verdade pra distribuir:
-  - `rustdesk-<versão>-x86_64.exe` → executável autoextraível, arquivo único
-  - `rustdesk-<versão>-x86_64.msi` → instalador Windows
-  - (se Android rodou) o `.apk` fica na aba Artifacts do job Android
+  - `BRSuporte-<versão>-x86_64.exe` → executável autoextraível, arquivo único
+  - `BRSuporte-<versão>-x86_64.msi` → instalador Windows
+  - (se Android rodou) `BRSuporte-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
 
 ## 5. Testar
 
