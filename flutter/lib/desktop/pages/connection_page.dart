@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/connection_page_title.dart';
@@ -18,7 +17,6 @@ import '../../common/formatter/id_formatter.dart';
 import '../../common/widgets/peer_tab_page.dart';
 import '../../common/widgets/autocomplete.dart';
 import '../../models/platform_model.dart';
-import '../../desktop/widgets/material_mod_popup_menu.dart' as mod_menu;
 
 class OnlineStatusWidget extends StatefulWidget {
   const OnlineStatusWidget({Key? key, this.onSvcStatusChanged})
@@ -168,7 +166,6 @@ class _ConnectionPageState extends State<ConnectionPage>
   // https://github.com/flutter/flutter/issues/157244
   Iterable<Peer> _autocompleteOpts = [];
 
-  final _menuOpen = false.obs;
 
   @override
   void initState() {
@@ -257,26 +254,19 @@ class _ConnectionPageState extends State<ConnectionPage>
 
   @override
   Widget build(BuildContext context) {
-    final isOutgoingOnly = bind.isOutgoingOnly();
+    // The service status now lives in the "this machine" strip above, so it is
+    // no longer repeated at the bottom of this pane.
     return Column(
       children: [
-        Expanded(
-            child: Column(
+        Row(
           children: [
-            Row(
-              children: [
-                Flexible(child: _buildRemoteIDTextField(context)),
-              ],
-            ).marginOnly(top: 22),
-            SizedBox(height: 12),
-            Divider().paddingOnly(right: 12),
-            Expanded(child: PeerTabPage()),
+            Flexible(child: _buildRemoteIDTextField(context)),
           ],
-        ).paddingOnly(left: 12.0)),
-        if (!isOutgoingOnly) const Divider(height: 1),
-        if (!isOutgoingOnly) OnlineStatusWidget()
+        ).marginOnly(top: 16),
+        const SizedBox(height: 16),
+        Expanded(child: PeerTabPage()),
       ],
-    );
+    ).paddingSymmetric(horizontal: 20);
   }
 
   /// Callback for the connect button.
@@ -296,11 +286,12 @@ class _ConnectionPageState extends State<ConnectionPage>
   /// Search for a peer.
   Widget _buildRemoteIDTextField(BuildContext context) {
     var w = Container(
-      width: 320 + 20 * 2,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
-          borderRadius: const BorderRadius.all(Radius.circular(13)),
-          border: Border.all(color: Theme.of(context).colorScheme.background)),
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.4))),
       child: Ink(
         child: Column(
           children: [
@@ -465,98 +456,47 @@ class _ConnectionPageState extends State<ConnectionPage>
                     );
                   },
                 )),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 13.0),
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                const SizedBox(width: 10),
                 SizedBox(
-                  height: 28.0,
+                  height: 44.0,
                   child: ElevatedButton(
                     onPressed: () {
                       onConnect();
                     },
-                    child: Text(translate("Connect")),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 28.0,
-                  width: 28.0,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: StatefulBuilder(
-                      builder: (context, setState) {
-                        var offset = Offset(0, 0);
-                        return Obx(() => InkWell(
-                              child: _menuOpen.value
-                                  ? Transform.rotate(
-                                      angle: pi,
-                                      child: Icon(IconFont.more, size: 14),
-                                    )
-                                  : Icon(IconFont.more, size: 14),
-                              onTapDown: (e) {
-                                offset = e.globalPosition;
-                              },
-                              onTap: () async {
-                                _menuOpen.value = true;
-                                final x = offset.dx;
-                                final y = offset.dy;
-                                await mod_menu
-                                    .showMenu(
-                                  context: context,
-                                  position: RelativeRect.fromLTRB(x, y, x, y),
-                                  items: [
-                                    (
-                                      'Transfer file',
-                                      () => onConnect(isFileTransfer: true)
-                                    ),
-                                    (
-                                      'View camera',
-                                      () => onConnect(isViewCamera: true)
-                                    ),
-                                    (
-                                      '${translate('Terminal')} (beta)',
-                                      () => onConnect(isTerminal: true)
-                                    ),
-                                  ]
-                                      .map((e) => MenuEntryButton<String>(
-                                            childBuilder: (TextStyle? style) =>
-                                                Text(
-                                              translate(e.$1),
-                                              style: style,
-                                            ),
-                                            proc: () => e.$2(),
-                                            padding: EdgeInsets.symmetric(
-                                                horizontal:
-                                                    kDesktopMenuPadding.left),
-                                            dismissOnClicked: true,
-                                          ))
-                                      .map((e) => e.build(
-                                          context,
-                                          const MenuConfig(
-                                              commonColor: CustomPopupMenuTheme
-                                                  .commonColor,
-                                              height:
-                                                  CustomPopupMenuTheme.height,
-                                              dividerHeight:
-                                                  CustomPopupMenuTheme
-                                                      .dividerHeight)))
-                                      .expand((i) => i)
-                                      .toList(),
-                                  elevation: 8,
-                                )
-                                    .then((_) {
-                                  _menuOpen.value = false;
-                                });
-                              },
-                            ));
-                      },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 26),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      translate("Connect"),
+                      style: const TextStyle(
+                          fontSize: 14.5, fontWeight: FontWeight.w700),
                     ),
                   ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Row(children: [
+                _connectMode(
+                  icon: Icons.folder_outlined,
+                  label: translate('Transfer file'),
+                  onTap: () => onConnect(isFileTransfer: true),
+                ),
+                const SizedBox(width: 8),
+                _connectMode(
+                  icon: Icons.videocam_outlined,
+                  label: translate('View camera'),
+                  onTap: () => onConnect(isViewCamera: true),
+                ),
+                const SizedBox(width: 8),
+                _connectMode(
+                  icon: Icons.terminal_outlined,
+                  label: '${translate('Terminal')} (beta)',
+                  onTap: () => onConnect(isTerminal: true),
                 ),
               ]),
             ),
@@ -566,5 +506,49 @@ class _ConnectionPageState extends State<ConnectionPage>
     );
     return Container(
         constraints: const BoxConstraints(maxWidth: 600), child: w);
+  }
+
+  /// Secondary connection modes, shown as pills instead of hidden behind an
+  /// overflow menu.
+  Widget _connectMode({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final RxBool hover = false.obs;
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
+    return Obx(
+      () => InkWell(
+        onTap: onTap,
+        onHover: (value) => hover.value = value,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+                color: hover.value
+                    ? MyTheme.accent
+                    : Theme.of(context).dividerColor.withOpacity(0.6)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: hover.value ? MyTheme.accent : textColor?.withOpacity(0.6)),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: hover.value ? MyTheme.accent : textColor?.withOpacity(0.75),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

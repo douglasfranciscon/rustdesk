@@ -3792,7 +3792,11 @@ Future<String?> _resolveLogoAsset(Brightness brightness) async {
 }
 
 class _Logo extends StatefulWidget {
-  const _Logo();
+  const _Logo({this.maxWidth = 300, this.maxHeight = 60, this.margin});
+
+  final double maxWidth;
+  final double maxHeight;
+  final EdgeInsets? margin;
 
   @override
   State<_Logo> createState() => _LogoState();
@@ -3823,9 +3827,12 @@ class _LogoState extends State<_Logo> {
             },
           );
           return Container(
-            constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
+            constraints: BoxConstraints(
+                maxWidth: widget.maxWidth, maxHeight: widget.maxHeight),
+            margin: widget.margin ??
+                const EdgeInsets.only(left: 12, right: 12, top: 12),
             child: image,
-          ).marginOnly(left: 12, right: 12, top: 12);
+          );
         }
         return const Offstage();
       },
@@ -3835,6 +3842,10 @@ class _LogoState extends State<_Logo> {
 
 // max 300 x 60
 Widget loadLogo() => const _Logo();
+
+/// The brand mark sized for the desktop navigation rail.
+Widget loadLogoMark({double width = 54, EdgeInsets? margin}) =>
+    _Logo(maxWidth: width, maxHeight: width, margin: margin);
 
 Widget loadIcon(double size) {
   return Image.asset('assets/icon.png',

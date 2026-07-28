@@ -21,7 +21,9 @@ typedef PopupMenuEntryBuilder = Future<List<mod_menu.PopupMenuEntry<String>>>
 
 enum PeerUiType { grid, tile, list }
 
-final peerCardUiType = PeerUiType.grid.obs;
+// BR Remote defaults to the list layout: it fits the hostname, platform and
+// online state on one row, which the square grid cards cannot.
+final peerCardUiType = PeerUiType.list.obs;
 
 bool? hideUsernameOnCard;
 

@@ -59,14 +59,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final isIncomingOnly = bind.isIncomingOnly();
+    // The incoming-only window is only 280px wide, which the navigation rail
+    // cannot fit, so that mode keeps the original stacked pane.
+    if (bind.isIncomingOnly()) {
+      return _buildBlock(
+          child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [buildLeftPane(context)],
+      ));
+    }
     return _buildBlock(
         child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        buildLeftPane(context),
-        if (!isIncomingOnly) const VerticalDivider(width: 1),
-        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+        _buildRail(context),
+        Expanded(child: _buildCanvas(context)),
       ],
     ));
   }
@@ -180,10 +187,261 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  buildRightPane(BuildContext context) {
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+
+  Color get _railBg => _isDark ? MyTheme.railBgDark : MyTheme.railBg;
+  Color get _railDim =>
+      _isDark ? const Color(0xFF939A8F) : const Color(0xFF61685C);
+  Color get _railActive => _isDark ? MyTheme.brand : MyTheme.brandDark;
+
+  /// Narrow navigation rail. Light enough that the logo's #262525 keeps its
+  /// weight; in dark mode the mark carries its own light plate.
+  Widget _buildRail(BuildContext context) {
+    return Container(
+      width: 76,
+      color: _railBg,
+      child: Column(
+        children: [
+          loadLogoMark(
+              width: 54, margin: const EdgeInsets.only(top: 14, bottom: 12)),
+          Container(width: 32, height: 1, color: _railDim.withOpacity(0.3)),
+          const SizedBox(height: 12),
+          _railItem(
+            icon: Icons.home_filled,
+            tooltip: translate('Home'),
+            active: true,
+          ),
+          _railItem(
+            icon: Icons.settings_outlined,
+            tooltip: translate('Settings'),
+            onTap: DesktopTabPage.onAddSetting,
+          ),
+          _railItem(
+            icon: Icons.help_outline,
+            tooltip: translate('About'),
+            onTap: () => DesktopSettingPage.switch2page(SettingsTabKey.about),
+          ),
+          Expanded(child: Container()),
+        ],
+      ),
+    );
+  }
+
+  Widget _railItem({
+    required IconData icon,
+    required String tooltip,
+    bool active = false,
+    VoidCallback? onTap,
+  }) {
+    final RxBool hover = false.obs;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        onHover: (value) => hover.value = value,
+        borderRadius: BorderRadius.circular(10),
+        child: Obx(
+          () => Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: active
+                  ? MyTheme.accent.withOpacity(0.18)
+                  : (hover.value
+                      ? _railDim.withOpacity(0.16)
+                      : Colors.transparent),
+            ),
+            child: Icon(icon,
+                size: 20, color: active ? _railActive : _railDim),
+          ),
+        ),
+      ),
+    ).marginOnly(bottom: 6);
+  }
+
+  Widget _buildCanvas(BuildContext context) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: ConnectionPage(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),
+          if (!bind.isOutgoingOnly()) _buildMachineStrip(context),
+          // Align passes loose constraints, so the cards keep their own width
+          // instead of being stretched by the surrounding Column.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
+            ),
+          ),
+          Expanded(child: ConnectionPage()),
+          buildPluginEntry(),
+          if (bind.isCustomClient())
+            Align(alignment: Alignment.center, child: loadPowered(context)),
+        ],
+      ),
+    );
+  }
+
+  /// "This machine": service status, ID and one-time password on a single
+  /// row. These are the two numbers a technician reads out over the phone,
+  /// so they stay in plain sight instead of stacked in a narrow column.
+  Widget _buildMachineStrip(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: gFFI.serverModel,
+      child: Consumer<ServerModel>(
+        builder: (context, model, child) => _machineStrip(context, model),
+      ),
+    );
+  }
+
+  // Only reached when incoming connections are enabled; the caller gates it.
+  Widget _machineStrip(BuildContext context, ServerModel model) {
+    final showOneTime = model.approveMode != 'click' &&
+        model.verificationMethod != kUsePermanentPassword;
+    final divider = Theme.of(context).dividerColor.withOpacity(0.4);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: divider),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Flexible so a long status message shrinks instead of overflowing
+            // the row on a narrow window.
+            const Flexible(child: OnlineStatusWidget()),
+            VerticalDivider(width: 32, color: divider),
+            _machineField(
+              context,
+              label: translate('ID'),
+              controller: model.serverId,
+              width: 178,
+              actions: [
+                _fieldAction(
+                  icon: Icons.copy_outlined,
+                  tooltip: translate('Copy to clipboard'),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: model.serverId.text));
+                    showToast(translate('Copied'));
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(width: 28),
+            _machineField(
+              context,
+              label: translate('One-time Password'),
+              controller: model.serverPasswd,
+              width: 132,
+              actions: [
+                if (showOneTime)
+                  _fieldAction(
+                    icon: Icons.copy_outlined,
+                    tooltip: translate('Copy to clipboard'),
+                    onTap: () {
+                      Clipboard.setData(
+                          ClipboardData(text: model.serverPasswd.text));
+                      showToast(translate('Copied'));
+                    },
+                  ),
+                if (showOneTime)
+                  _fieldAction(
+                    icon: Icons.refresh,
+                    tooltip: translate('Refresh Password'),
+                    onTap: () => bind.mainUpdateTemporaryPassword(),
+                  ),
+                if (!bind.isDisableSettings())
+                  _fieldAction(
+                    icon: Icons.edit_outlined,
+                    tooltip: translate('Change Password'),
+                    onTap: () =>
+                        DesktopSettingPage.switch2page(SettingsTabKey.safety),
+                  ),
+              ],
+            ),
+            Expanded(child: Container()),
+            buildPopupMenu(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _machineField(
+    BuildContext context, {
+    required String label,
+    required TextEditingController controller,
+    required double width,
+    required List<Widget> actions,
+  }) {
+    final labelColor =
+        Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.5);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: labelColor),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: width,
+              child: TextFormField(
+                controller: controller,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.only(top: 4, bottom: 2),
+                ),
+                style: const TextStyle(
+                    fontSize: 21, fontWeight: FontWeight.w600, height: 1.2),
+              ).workaroundFreezeLinuxMint(),
+            ),
+            ...actions,
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _fieldAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    final RxBool hover = false.obs;
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        onHover: (value) => hover.value = value,
+        borderRadius: BorderRadius.circular(6),
+        child: Obx(
+          () => Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(
+              icon,
+              size: 17,
+              color: hover.value ? textColor : textColor?.withOpacity(0.45),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
