@@ -251,13 +251,10 @@ class MyTheme {
   MyTheme._();
 
   // BR Remote palette. `brand` is the logo green; `accent` is a slightly
-  // deeper tone so it still reaches 4.5:1 as text on white, and `railBg` is
-  // light enough for the logo's #262525 to keep its weight (11:1).
+  // deeper tone so it still reaches 4.5:1 as text on white, and `brandDark`
+  // is for green text or icons that need to hold up on a light surface.
   static const Color brand = Color(0xFF3CA332);
   static const Color brandDark = Color(0xFF24761F);
-  static const Color graphite = Color(0xFF262525);
-  static const Color railBg = Color(0xFFD9DCD4);
-  static const Color railBgDark = Color(0xFF1F221D);
 
   static const Color grayBg = Color(0xFFEFF1EC);
   static const Color accent = Color(0xFF2F8F28);

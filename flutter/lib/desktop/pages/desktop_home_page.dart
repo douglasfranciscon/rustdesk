@@ -189,9 +189,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
-  Color get _railBg => _isDark ? MyTheme.railBgDark : MyTheme.railBg;
+  /// The rail keeps the app's own background colour, nudged about 12% lighter
+  /// so it reads as a separate surface without becoming a separate colour. The
+  /// light theme's background is already white, so there it goes the same
+  /// small amount darker instead.
+  Color get _railBg {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    return _isDark
+        ? Color.lerp(bg, Colors.white, 0.12)!
+        : Color.lerp(bg, Colors.black, 0.06)!;
+  }
+
   Color get _railDim =>
-      _isDark ? const Color(0xFF939A8F) : const Color(0xFF61685C);
+      _isDark ? const Color(0xFFA8AFA3) : const Color(0xFF61685C);
   Color get _railActive => _isDark ? MyTheme.brand : MyTheme.brandDark;
 
   /// Narrow navigation rail. Light enough that the logo's #262525 keeps its
