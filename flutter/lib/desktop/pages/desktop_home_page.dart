@@ -874,12 +874,16 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               0, marginTop, 0, bind.isIncomingOnly() ? marginTop : 0),
           child: Container(
               decoration: BoxDecoration(
+                  // Amber rather than the upstream magenta: these cards are
+                  // warnings, so they should not read as brand green, and the
+                  // deeper end keeps white text legible (5.5:1, against 2.8:1
+                  // at the end of the magenta gradient).
                   gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Color.fromARGB(255, 226, 66, 188),
-                  Color.fromARGB(255, 244, 114, 124),
+                  Color.fromARGB(255, 204, 116, 18),
+                  Color.fromARGB(255, 176, 74, 13),
                 ],
               )),
               padding: EdgeInsets.all(20),
