@@ -279,15 +279,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         children: [
           if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),
           if (!bind.isOutgoingOnly()) _buildMachineStrip(context),
-          // Align passes loose constraints, so the cards keep their own width
-          // instead of being stretched by the surrounding Column.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
-            ),
-          ),
+          Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
           Expanded(child: ConnectionPage()),
           buildPluginEntry(),
           if (bind.isCustomClient())
@@ -867,13 +859,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       }
     }
 
+    // The narrow incoming-only pane has no room to inset the card; everywhere
+    // else it lines up with the machine strip and the connect card.
+    final hMargin = bind.isIncomingOnly() ? 0.0 : 20.0;
     return Stack(
       children: [
         Container(
-          margin: EdgeInsets.fromLTRB(
-              0, marginTop, 0, bind.isIncomingOnly() ? marginTop : 0),
+          margin: EdgeInsets.fromLTRB(hMargin, marginTop, hMargin,
+              bind.isIncomingOnly() ? marginTop : 0),
           child: Container(
               decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
                   // Amber rather than the upstream magenta: these cards are
                   // warnings, so they should not read as brand green, and the
                   // deeper end keeps white text legible (5.5:1, against 2.8:1
@@ -952,7 +948,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         if (closeButton != null && closeButton == true)
           Positioned(
             top: 18,
-            right: 0,
+            // Follows the card's own edge, not the Stack's, now that the card
+            // is inset.
+            right: hMargin,
             child: IconButton(
               icon: Icon(
                 Icons.close,

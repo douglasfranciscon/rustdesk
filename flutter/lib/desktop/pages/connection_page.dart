@@ -504,8 +504,9 @@ class _ConnectionPageState extends State<ConnectionPage>
         ),
       ),
     );
-    return Container(
-        constraints: const BoxConstraints(maxWidth: 600), child: w);
+    // No width cap: the card tracks the window so it stays flush with the
+    // machine strip and the warning cards above it.
+    return w;
   }
 
   /// Secondary connection modes, shown as pills instead of hidden behind an
