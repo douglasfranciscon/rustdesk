@@ -218,6 +218,12 @@ const String kOptionShowMobileAction = "showMobileActions";
 
 const String kUrlActionClose = "close";
 
+// The name to show a person, which is not the same as APP_NAME. APP_NAME has
+// no space because Windows derives the executable name, the install folder and
+// the registry keys from it, and a space there leaves the desktop shortcut
+// pointing at a file that does not exist.
+const String kAppDisplayName = "BR Remote";
+
 const String kTabLabelHomePage = "Home";
 const String kTabLabelSettingPage = "Settings";
 

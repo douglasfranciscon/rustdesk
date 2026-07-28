@@ -1004,6 +1004,20 @@ pub fn get_app_name() -> String {
     hbb_common::config::APP_NAME.read().unwrap().clone()
 }
 
+/// The name to show a person, as opposed to `get_app_name()`, which Windows
+/// uses to build the executable name, the install folder and the registry
+/// keys. Those cannot carry a space: the installer would write a desktop
+/// shortcut pointing at a file that does not exist. Only the exact branded
+/// value is rewritten, so upstream and other builds are untouched.
+pub fn get_display_name() -> String {
+    let app_name = get_app_name();
+    if app_name == "BRRemote" {
+        "BR Remote".to_owned()
+    } else {
+        app_name
+    }
+}
+
 #[inline]
 pub fn is_rustdesk() -> bool {
     hbb_common::config::APP_NAME.read().unwrap().eq("RustDesk")
