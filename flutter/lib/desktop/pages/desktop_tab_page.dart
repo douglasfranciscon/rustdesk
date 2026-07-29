@@ -62,6 +62,10 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
           setResizable(true);
         }
       };
+    } else {
+      // Settings and sessions share this window, so they need the full size
+      // back whenever the account-less home page has shrunk it.
+      tabController.onSelected = (key) => updateCompactHomeWindowSize();
     }
   }
 

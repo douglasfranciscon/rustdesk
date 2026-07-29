@@ -49,6 +49,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsInputMonitoring = false;
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
+  Worker? _loginWorker;
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
@@ -280,13 +281,30 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),
           if (!bind.isOutgoingOnly()) _buildMachineStrip(context),
           Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
-          Expanded(child: ConnectionPage()),
+          Expanded(child: _buildOutgoingPane(context)),
           buildPluginEntry(),
           if (bind.isCustomClient())
             Align(alignment: Alignment.center, child: loadPowered(context)),
         ],
       ),
     );
+  }
+
+  /// Outgoing connections need an account, so the remote ID field and the peer
+  /// lists below it (address book, groups, recent sessions) stay hidden until
+  /// the user logs in. Most machines only ever receive connections, so nothing
+  /// takes their place: the page is just the "this machine" strip, with no
+  /// prompt suggesting a login the user does not need. Signing in is still
+  /// reachable from Settings for whoever does.
+  /// Builds with accounts disabled have no login to wait for, and outgoing-only
+  /// builds have nothing else on the page, so both keep the pane visible.
+  Widget _buildOutgoingPane(BuildContext context) {
+    if (bind.isDisableAccount() || bind.isOutgoingOnly()) {
+      return ConnectionPage();
+    }
+    return Obx(() => gFFI.userModel.userName.value.isEmpty
+        ? const Offstage()
+        : ConnectionPage());
   }
 
   /// "This machine": service status, ID and one-time password on a single
@@ -1126,6 +1144,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _updateWindowSize();
       });
+    } else {
+      // Logging in or out changes what this page has to show, and with it how
+      // much window it needs.
+      _loginWorker =
+          ever(gFFI.userModel.userName, (_) => updateCompactHomeWindowSize());
     }
     WidgetsBinding.instance.addObserver(this);
   }
@@ -1149,6 +1172,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
+    _loginWorker?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
