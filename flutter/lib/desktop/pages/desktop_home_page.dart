@@ -12,10 +12,8 @@ import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
-import 'package:flutter_hbb/desktop/widgets/update_progress.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
-import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_hbb/utils/platform_channel.dart';
@@ -49,7 +47,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsInputMonitoring = false;
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
-  Worker? _loginWorker;
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
@@ -102,8 +99,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
-        future: Future.value(
-            Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
+        future: Future.value(buildHelpCards()),
         builder: (_, data) {
           if (data.hasData) {
             if (isIncomingOnly) {
@@ -273,56 +269,153 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget _buildCanvas(BuildContext context) {
+    final isOutgoingOnly = bind.isOutgoingOnly();
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!bind.isOutgoingOnly()) buildPresetPasswordWarning(),
-          if (!bind.isOutgoingOnly()) _buildMachineStrip(context),
-          Obx(() => buildHelpCards(stateGlobal.updateUrl.value)),
-          Expanded(child: _buildOutgoingPane(context)),
-          buildPluginEntry(),
-          if (bind.isCustomClient())
-            Align(alignment: Alignment.center, child: loadPowered(context)),
-        ],
-      ),
+      child: Obx(() {
+        // Without an account there is no peer list to fill the page, so the
+        // machine box moves off the top edge and takes the middle instead.
+        final showsPeers = _showsOutgoingPane;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!isOutgoingOnly) buildPresetPasswordWarning(),
+            if (!isOutgoingOnly && showsPeers)
+              _buildMachineBox(context, large: false),
+            buildHelpCards(),
+            Expanded(
+              child: showsPeers
+                  ? ConnectionPage()
+                  : Center(
+                      child: SingleChildScrollView(
+                        child: _buildMachineBox(context, large: true),
+                      ),
+                    ),
+            ),
+            buildPluginEntry(),
+            if (bind.isCustomClient())
+              Align(alignment: Alignment.center, child: loadPowered(context)),
+          ],
+        );
+      }),
     );
   }
 
   /// Outgoing connections need an account, so the remote ID field and the peer
   /// lists below it (address book, groups, recent sessions) stay hidden until
   /// the user logs in. Most machines only ever receive connections, so nothing
-  /// takes their place: the page is just the "this machine" strip, with no
-  /// prompt suggesting a login the user does not need. Signing in is still
-  /// reachable from Settings for whoever does.
+  /// prompts a login they do not need: the page becomes the "this machine" box
+  /// alone. Signing in is still reachable from Settings for whoever does.
   /// Builds with accounts disabled have no login to wait for, and outgoing-only
   /// builds have nothing else on the page, so both keep the pane visible.
-  Widget _buildOutgoingPane(BuildContext context) {
-    if (bind.isDisableAccount() || bind.isOutgoingOnly()) {
-      return ConnectionPage();
-    }
-    return Obx(() => gFFI.userModel.userName.value.isEmpty
-        ? const Offstage()
-        : ConnectionPage());
+  bool get _showsOutgoingPane {
+    // Read the login state first and unconditionally: this runs inside an Obx,
+    // which throws if a rebuild reads no observable at all.
+    final isLogin = gFFI.userModel.userName.value.isNotEmpty;
+    return isLogin || bind.isDisableAccount() || bind.isOutgoingOnly();
   }
 
-  /// "This machine": service status, ID and one-time password on a single
-  /// row. These are the two numbers a technician reads out over the phone,
-  /// so they stay in plain sight instead of stacked in a narrow column.
-  Widget _buildMachineStrip(BuildContext context) {
+  /// "This machine": service status, ID and one-time password. Those are the
+  /// two numbers a technician reads out over the phone, so they stay in plain
+  /// sight -- as a strip above the peer list, or as the page itself when there
+  /// is no peer list.
+  Widget _buildMachineBox(BuildContext context, {required bool large}) {
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Consumer<ServerModel>(
-        builder: (context, model, child) => _machineStrip(context, model),
+        builder: (context, model, child) =>
+            large ? _machineCard(context, model) : _machineStrip(context, model),
       ),
     );
   }
 
-  // Only reached when incoming connections are enabled; the caller gates it.
-  Widget _machineStrip(BuildContext context, ServerModel model) {
+  /// The page-sized presentation: the numbers big enough to read across a desk.
+  Widget _machineCard(BuildContext context, ServerModel model) {
+    final divider = Theme.of(context).dividerColor.withOpacity(0.4);
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 660),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(28, 18, 20, 26),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: divider),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Flexible(child: OnlineStatusWidget()),
+              buildPopupMenu(context),
+            ],
+          ),
+          Divider(height: 20, color: divider),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _machineField(
+                  context,
+                  label: translate('ID'),
+                  controller: model.serverId,
+                  fontSize: 34,
+                  labelSize: 13,
+                  actions: [_copyAction(model.serverId)],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: _machineField(
+                  context,
+                  label: translate('One-time Password'),
+                  controller: model.serverPasswd,
+                  fontSize: 34,
+                  labelSize: 13,
+                  actions: _passwordActions(model),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _copyAction(TextEditingController controller) => _fieldAction(
+        icon: Icons.copy_outlined,
+        tooltip: translate('Copy to clipboard'),
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: controller.text));
+          showToast(translate('Copied'));
+        },
+      );
+
+  List<Widget> _passwordActions(ServerModel model) {
+    // A permanent password is not ours to copy or roll over from here.
     final showOneTime = model.approveMode != 'click' &&
         model.verificationMethod != kUsePermanentPassword;
+    return [
+      if (showOneTime) _copyAction(model.serverPasswd),
+      if (showOneTime)
+        _fieldAction(
+          icon: Icons.refresh,
+          tooltip: translate('Refresh Password'),
+          onTap: () => bind.mainUpdateTemporaryPassword(),
+        ),
+      if (!bind.isDisableSettings())
+        _fieldAction(
+          icon: Icons.edit_outlined,
+          tooltip: translate('Change Password'),
+          onTap: () => DesktopSettingPage.switch2page(SettingsTabKey.safety),
+        ),
+    ];
+  }
+
+  /// The strip presentation: everything on one row above the peer list.
+  Widget _machineStrip(BuildContext context, ServerModel model) {
     final divider = Theme.of(context).dividerColor.withOpacity(0.4);
 
     return Container(
@@ -346,16 +439,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               label: translate('ID'),
               controller: model.serverId,
               width: 178,
-              actions: [
-                _fieldAction(
-                  icon: Icons.copy_outlined,
-                  tooltip: translate('Copy to clipboard'),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: model.serverId.text));
-                    showToast(translate('Copied'));
-                  },
-                ),
-              ],
+              actions: [_copyAction(model.serverId)],
             ),
             const SizedBox(width: 28),
             _machineField(
@@ -363,31 +447,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               label: translate('One-time Password'),
               controller: model.serverPasswd,
               width: 132,
-              actions: [
-                if (showOneTime)
-                  _fieldAction(
-                    icon: Icons.copy_outlined,
-                    tooltip: translate('Copy to clipboard'),
-                    onTap: () {
-                      Clipboard.setData(
-                          ClipboardData(text: model.serverPasswd.text));
-                      showToast(translate('Copied'));
-                    },
-                  ),
-                if (showOneTime)
-                  _fieldAction(
-                    icon: Icons.refresh,
-                    tooltip: translate('Refresh Password'),
-                    onTap: () => bind.mainUpdateTemporaryPassword(),
-                  ),
-                if (!bind.isDisableSettings())
-                  _fieldAction(
-                    icon: Icons.edit_outlined,
-                    tooltip: translate('Change Password'),
-                    onTap: () =>
-                        DesktopSettingPage.switch2page(SettingsTabKey.safety),
-                  ),
-              ],
+              actions: _passwordActions(model),
             ),
             Expanded(child: Container()),
             buildPopupMenu(context),
@@ -397,40 +457,47 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
+  /// Pass a [width] to size the value to its content, as the strip does, or
+  /// leave it null to have it fill the space the caller gives it.
   Widget _machineField(
     BuildContext context, {
     required String label,
     required TextEditingController controller,
-    required double width,
     required List<Widget> actions,
+    double? width,
+    double fontSize = 21,
+    double labelSize = 12,
   }) {
     final labelColor =
         Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.5);
+    // A read-only field rather than a Text: the numbers stay selectable, and
+    // one too long for its box scrolls inside it instead of spilling over the
+    // neighbours.
+    final value = TextFormField(
+      controller: controller,
+      readOnly: true,
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: EdgeInsets.only(top: 4, bottom: 2),
+      ),
+      style: TextStyle(
+          fontSize: fontSize, fontWeight: FontWeight.w600, height: 1.2),
+    ).workaroundFreezeLinuxMint();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: labelColor),
+          style: TextStyle(fontSize: labelSize, color: labelColor),
         ),
         Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: width == null ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            SizedBox(
-              width: width,
-              child: TextFormField(
-                controller: controller,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.only(top: 4, bottom: 2),
-                ),
-                style: const TextStyle(
-                    fontSize: 21, fontWeight: FontWeight.w600, height: 1.2),
-              ).workaroundFreezeLinuxMint(),
-            ),
+            width == null
+                ? Expanded(child: value)
+                : SizedBox(width: width, child: value),
             ...actions,
           ],
         ),
@@ -707,33 +774,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  Widget buildHelpCards(String updateUrl) {
-    if (!bind.isCustomClient() &&
-        updateUrl.isNotEmpty &&
-        !isCardClosed &&
-        bind.mainUriPrefixSync().contains('rustdesk')) {
-      final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
-      String btnText = isToUpdate ? 'Update' : 'Download';
-      GestureTapCallback onPressed = () async {
-        final Uri url = Uri.parse('https://rustdesk.com/download');
-        await launchUrl(url);
-      };
-      if (isToUpdate) {
-        onPressed = () {
-          handleUpdate(updateUrl);
-        };
-      }
-      return buildInstallCard(
-          "Status",
-          "${translate("new-version-of-{${bind.mainGetAppNameSync()}}-tip")} (${bind.mainGetNewVersion()}).",
-          btnText,
-          onPressed,
-          closeButton: true,
-          help: isToUpdate ? 'Changelog' : null,
-          link: isToUpdate
-              ? 'https://github.com/rustdesk/rustdesk/releases/tag/${bind.mainGetNewVersion()}'
-              : null);
-    }
+  // There is no version check in this build, so no card ever announces one:
+  // neither the "new version available" one nor the local "your installation is
+  // lower version" one, which only ever fired on a developer machine running a
+  // build newer than the copy installed there.
+  Widget buildHelpCards() {
     if (systemError.isNotEmpty) {
       return buildInstallCard("", systemError, "", () {});
     }
@@ -745,13 +790,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             () async {
           await rustDeskWinManager.closeAllSubWindows();
           bind.mainGotoInstall();
-        });
-      } else if (bind.mainIsInstalledLowerVersion()) {
-        return buildInstallCard(
-            "Status", "Your installation is lower version.", "Click to upgrade",
-            () async {
-          await rustDeskWinManager.closeAllSubWindows();
-          bind.mainUpdateMe();
         });
       }
     } else if (isMacOS) {
@@ -1144,11 +1182,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _updateWindowSize();
       });
-    } else {
-      // Logging in or out changes what this page has to show, and with it how
-      // much window it needs.
-      _loginWorker =
-          ever(gFFI.userModel.userName, (_) => updateCompactHomeWindowSize());
     }
     WidgetsBinding.instance.addObserver(this);
   }
@@ -1172,7 +1205,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
-    _loginWorker?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

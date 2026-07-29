@@ -1836,15 +1836,6 @@ Future<void> saveWindowPosition(WindowType type,
             ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
         sz = await windowManager.getSize(
             ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
-        if (isCompactHomeShown()) {
-          // The compact size is the app's doing, not the user's: keep the size
-          // they last chose so logging in gets their window back.
-          final stored = LastWindowPosition.loadFromString(
-              bind.getLocalFlutterOption(k: windowFramePrefix + type.name));
-          sz = stored?.width != null && stored?.height != null
-              ? Size(stored!.width!, stored.height!)
-              : null;
-        }
       }
       break;
     default:
@@ -3881,70 +3872,6 @@ bool isInHomePage() {
   return controller.state.value.selected == 0;
 }
 
-// Builds that need an account show only the "this machine" strip on the home
-// page while nobody is logged in, so the window is held at a size that fits it
-// instead of the room the peer lists ask for. This size is imposed by the app
-// rather than chosen by the user, so it is never stored as their geometry.
-const kCompactHomeSize = Size(880, 420);
-
-// Same default as `_adjustRestoreMainWindowSize` falls back to.
-const _defaultMainWindowSize = Size(1280, 720);
-
-bool get _canCompactHome =>
-    isDesktop &&
-    !bind.isIncomingOnly() &&
-    !bind.isOutgoingOnly() &&
-    !bind.isDisableAccount();
-
-// The tab controller only exists once the tab page is built; before that the
-// home page is what is about to be shown.
-bool get _isHomeTabSelected =>
-    !Get.isRegistered<DesktopTabController>() || isInHomePage();
-
-/// Whether the main window is currently held at [kCompactHomeSize]. Settings
-/// and sessions open in the same window and need its full size, so the tab in
-/// front counts as much as the login state.
-bool isCompactHomeShown() =>
-    _canCompactHome && !gFFI.userModel.isLogin && _isHomeTabSelected;
-
-Size storedMainWindowSize() {
-  final lpos = LastWindowPosition.loadFromString(
-      bind.getLocalFlutterOption(k: windowFramePrefix + WindowType.Main.name));
-  final width = lpos?.width;
-  final height = lpos?.height;
-  if (width == null || height == null || width < kCompactHomeSize.width) {
-    return _defaultMainWindowSize;
-  }
-  return Size(width, height);
-}
-
-bool _isCompactSize(Size size) =>
-    (size.width - kCompactHomeSize.width).abs() < 2 &&
-    (size.height - kCompactHomeSize.height).abs() < 2;
-
-/// Shrinks the main window to fit the account-less home page, and gives it its
-/// stored size back when something that needs the room takes over: a login, or
-/// a settings/session tab.
-Future<void> updateCompactHomeWindowSize() async {
-  if (!_canCompactHome) return;
-  if (stateGlobal.fullscreen.isTrue || await windowManager.isMaximized()) {
-    return;
-  }
-  final current = await windowManager.getSize(
-      ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
-  if (isCompactHomeShown()) {
-    if (!_isCompactSize(current)) {
-      await windowManager.setSize(kCompactHomeSize,
-          ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
-    }
-  } else if (_isCompactSize(current)) {
-    // Only grow a window still at the size we imposed. If the user resized the
-    // compact window themselves, that is their choice to keep.
-    await windowManager.setSize(storedMainWindowSize(),
-        ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
-  }
-}
-
 Widget _buildPresetPasswordWarning() {
   if (bind.mainGetBuildinOption(key: kOptionRemovePresetPasswordWarning) !=
       'N') {
@@ -4153,23 +4080,6 @@ List<SubWindowResizeEdge>? get subWindowManagerEnableResizeEdges => isWindows
 
 void earlyAssert() {
   assert('\1' == '1');
-}
-
-void checkUpdate() {
-  if (!isWeb) {
-    if (!bind.isCustomClient()) {
-      platformFFI.registerEventHandler(
-          kCheckSoftwareUpdateFinish, kCheckSoftwareUpdateFinish,
-          (Map<String, dynamic> evt) async {
-        if (evt['url'] is String) {
-          stateGlobal.updateUrl.value = evt['url'];
-        }
-      });
-      Timer(const Duration(seconds: 1), () async {
-        bind.mainGetSoftwareUpdateUrl();
-      });
-    }
-  }
 }
 
 // https://github.com/flutter/flutter/issues/153560#issuecomment-2497160535

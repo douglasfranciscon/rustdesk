@@ -81,10 +81,11 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
                         : Color.fromARGB(255, 224, 79, 95)),
               ),
             ).marginSymmetric(horizontal: em),
-            Container(
-              width: isIncomingOnly ? 226 : null,
-              child: _buildConnStatusMsg(),
-            ),
+            // Flexible, or a long status message takes its natural width and
+            // paints over whatever sits next to it in the row.
+            isIncomingOnly
+                ? Container(width: 226, child: _buildConnStatusMsg())
+                : Flexible(child: _buildConnStatusMsg()),
             // stop
             if (!isIncomingOnly) startServiceWidget(),
           ],
@@ -108,6 +109,9 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
   _buildConnStatusMsg() {
     widget.onSvcStatusChanged?.call();
+    // The incoming-only pane is 226px wide and gives the message as many lines
+    // as it needs; everywhere else it shares a row and has to cut instead.
+    final isIncomingOnly = bind.isIncomingOnly();
     return Text(
       _svcStopped.value
           ? translate("Service is not running")
@@ -116,6 +120,8 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
               : stateGlobal.svcStatus.value == SvcStatus.notReady
                   ? translate("not_ready_status")
                   : translate('Ready'),
+      maxLines: isIncomingOnly ? null : 1,
+      overflow: isIncomingOnly ? null : TextOverflow.ellipsis,
       style: TextStyle(fontSize: em),
     );
   }
