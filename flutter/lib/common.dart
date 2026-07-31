@@ -585,7 +585,15 @@ class MyTheme {
   );
 
   static ThemeMode getThemeModePreference() {
-    return themeModeFromString(bind.mainGetLocalOption(key: kCommConfKeyTheme));
+    final preference = bind.mainGetLocalOption(key: kCommConfKeyTheme);
+    // Nobody has chosen a theme yet. Start on light rather than following the
+    // machine: a support tool is read out loud from across a desk, and the
+    // person being helped did not pick their dark mode with that in mind.
+    // Choosing "Follow system" in settings stores it and is respected.
+    if (preference.isEmpty) {
+      return ThemeMode.light;
+    }
+    return themeModeFromString(preference);
   }
 
   static Future<void> changeDarkMode(ThemeMode mode) async {
@@ -1836,6 +1844,15 @@ Future<void> saveWindowPosition(WindowType type,
             ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
         sz = await windowManager.getSize(
             ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
+        if (isQuickHomeShown()) {
+          // The narrow size is the app's doing, not the user's: keep the size
+          // they last chose so logging in gets their window back.
+          final stored = LastWindowPosition.loadFromString(
+              bind.getLocalFlutterOption(k: windowFramePrefix + type.name));
+          sz = stored?.width != null && stored?.height != null
+              ? Size(stored!.width!, stored.height!)
+              : null;
+        }
       }
       break;
     default:
@@ -3865,6 +3882,70 @@ Size getIncomingOnlyHomeSize() {
 
 Size getIncomingOnlySettingsSize() {
   return Size(768, 600);
+}
+
+// While nobody is logged in the home page is a single tall card built for a
+// narrow window, so the window is held at the size that card is drawn for.
+// The size is the app's choice rather than the user's, so it is never stored
+// as their geometry -- see `saveWindowPosition`.
+const kQuickHomeSize = Size(480, 620);
+
+// Same default `_adjustRestoreMainWindowSize` falls back to.
+const _defaultMainWindowSize = Size(1280, 720);
+
+bool get _canQuickHome =>
+    isDesktop &&
+    !bind.isIncomingOnly() &&
+    !bind.isOutgoingOnly() &&
+    !bind.isDisableAccount();
+
+// The tab controller only exists once the tab page is built; before that the
+// home page is what is about to be shown.
+bool get _isHomeTabSelected =>
+    !Get.isRegistered<DesktopTabController>() || isInHomePage();
+
+/// Whether the window should currently be held at [kQuickHomeSize]. Settings
+/// and sessions open in this same window and need the full size, so the tab in
+/// front counts as much as the login state.
+bool isQuickHomeShown() =>
+    _canQuickHome && !gFFI.userModel.isLogin && _isHomeTabSelected;
+
+Size storedMainWindowSize() {
+  final lpos = LastWindowPosition.loadFromString(
+      bind.getLocalFlutterOption(k: windowFramePrefix + WindowType.Main.name));
+  final width = lpos?.width;
+  final height = lpos?.height;
+  if (width == null || height == null || width <= kQuickHomeSize.width) {
+    return _defaultMainWindowSize;
+  }
+  return Size(width, height);
+}
+
+bool _isQuickSize(Size size) =>
+    (size.width - kQuickHomeSize.width).abs() < 2 &&
+    (size.height - kQuickHomeSize.height).abs() < 2;
+
+/// Narrows the main window to fit the account-less home page, and gives it its
+/// stored size back when something that needs the room takes over: a login, or
+/// a settings/session tab.
+Future<void> updateQuickHomeWindowSize() async {
+  if (!_canQuickHome) return;
+  if (stateGlobal.fullscreen.isTrue || await windowManager.isMaximized()) {
+    return;
+  }
+  final current = await windowManager.getSize(
+      ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
+  if (isQuickHomeShown()) {
+    if (!_isQuickSize(current)) {
+      await windowManager.setSize(kQuickHomeSize,
+          ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
+    }
+  } else if (_isQuickSize(current)) {
+    // Only grow a window still at the size we imposed. If the user resized the
+    // narrow window themselves, that is their choice to keep.
+    await windowManager.setSize(storedMainWindowSize(),
+        ignoreDevicePixelRatio: _ignoreDevicePixelRatio);
+  }
 }
 
 bool isInHomePage() {

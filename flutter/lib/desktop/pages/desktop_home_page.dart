@@ -47,6 +47,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsInputMonitoring = false;
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
+  Worker? _loginWorker;
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
@@ -66,14 +67,20 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         children: [buildLeftPane(context)],
       ));
     }
-    return _buildBlock(
-        child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildRail(context),
-        Expanded(child: _buildCanvas(context)),
-      ],
-    ));
+    return _buildBlock(child: Obx(() {
+      // Nobody logged in: there is nowhere for a rail to navigate to, so the
+      // page becomes the one thing this machine is here for.
+      if (!_showsOutgoingPane) {
+        return _buildQuickPane(context);
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildRail(context),
+          Expanded(child: _buildCanvas(context)),
+        ],
+      );
+    }));
   }
 
   Widget _buildBlock({required Widget child}) {
@@ -268,36 +275,23 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     ).marginOnly(bottom: 6);
   }
 
+  /// The signed-in page: the machine strip on top, the peer list below it.
   Widget _buildCanvas(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: Obx(() {
-        // Without an account there is no peer list to fill the page, so the
-        // machine box moves off the top edge and takes the middle instead.
-        final showsPeers = _showsOutgoingPane;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!isOutgoingOnly) buildPresetPasswordWarning(),
-            if (!isOutgoingOnly && showsPeers)
-              _buildMachineBox(context, large: false),
-            buildHelpCards(),
-            Expanded(
-              child: showsPeers
-                  ? ConnectionPage()
-                  : Center(
-                      child: SingleChildScrollView(
-                        child: _buildMachineBox(context, large: true),
-                      ),
-                    ),
-            ),
-            buildPluginEntry(),
-            if (bind.isCustomClient())
-              Align(alignment: Alignment.center, child: loadPowered(context)),
-          ],
-        );
-      }),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!isOutgoingOnly) buildPresetPasswordWarning(),
+          if (!isOutgoingOnly) _buildMachineBox(context),
+          buildHelpCards(),
+          Expanded(child: ConnectionPage()),
+          buildPluginEntry(),
+          if (bind.isCustomClient())
+            Align(alignment: Alignment.center, child: loadPowered(context)),
+        ],
+      ),
     );
   }
 
@@ -315,72 +309,206 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     return isLogin || bind.isDisableAccount() || bind.isOutgoingOnly();
   }
 
-  /// "This machine": service status, ID and one-time password. Those are the
-  /// two numbers a technician reads out over the phone, so they stay in plain
-  /// sight -- as a strip above the peer list, or as the page itself when there
-  /// is no peer list.
-  Widget _buildMachineBox(BuildContext context, {required bool large}) {
+  /// "This machine": service status, ID and one-time password on a single row,
+  /// above the peer list.
+  Widget _buildMachineBox(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Consumer<ServerModel>(
-        builder: (context, model, child) =>
-            large ? _machineCard(context, model) : _machineStrip(context, model),
+        builder: (context, model, child) => _machineStrip(context, model),
       ),
     );
   }
 
-  /// The page-sized presentation: the numbers big enough to read across a desk.
-  Widget _machineCard(BuildContext context, ServerModel model) {
-    final divider = Theme.of(context).dividerColor.withOpacity(0.4);
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 660),
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      padding: const EdgeInsets.fromLTRB(28, 18, 20, 26),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: divider),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  /// The account-less page, built for a narrow window: what the app is, the
+  /// two numbers to read out to whoever is helping, and the service state at
+  /// the bottom. Nothing else -- this is the whole app for the person being
+  /// helped, who will never connect out.
+  Widget _buildQuickPane(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: gFFI.serverModel,
+      child: Consumer<ServerModel>(
+        builder: (context, model, child) => Container(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Flexible(child: OnlineStatusWidget()),
-              buildPopupMenu(context),
+              _quickHeader(context),
+              _quickSectionTitle(context),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _quickBody(context, model),
+                ),
+              ),
+              _quickFooter(context),
             ],
           ),
-          Divider(height: 20, color: divider),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _machineField(
-                  context,
-                  label: translate('ID'),
-                  controller: model.serverId,
-                  fontSize: 34,
-                  labelSize: 13,
-                  actions: [_copyAction(model.serverId)],
+        ),
+      ),
+    );
+  }
+
+  /// The brand band. `brandDark` rather than the lighter logo green: white
+  /// text needs 4.5:1, which only the deeper tone reaches.
+  Widget _quickHeader(BuildContext context) {
+    return Container(
+      color: MyTheme.brandDark,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: loadIcon(52),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  kAppDisplayName,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: _machineField(
-                  context,
-                  label: translate('One-time Password'),
-                  controller: model.serverPasswd,
-                  fontSize: 34,
-                  labelSize: 13,
-                  actions: _passwordActions(model),
+                const SizedBox(height: 2),
+                Text(
+                  translate('app_tagline'),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.85), fontSize: 13),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Section header. The gear is the only way out of this page, so it stands
+  /// in for the navigation rail the signed-in layout has.
+  Widget _quickSectionTitle(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark
+        ? Color.lerp(Theme.of(context).scaffoldBackgroundColor, Colors.white,
+            0.08)!
+        : const Color(0xFFECEEE9);
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              translate('Allow remote control'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (!bind.isDisableSettings())
+            _fieldAction(
+              icon: Icons.settings,
+              tooltip: translate('Settings'),
+              onTap: DesktopTabPage.onAddSetting,
+              size: 24,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickBody(BuildContext context, ServerModel model) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        buildPresetPasswordWarning(),
+        buildHelpCards(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                translate('share_id_password_tip'),
+                style: const TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 22),
+              _quickField(
+                context,
+                label: translate('Your ID'),
+                controller: model.serverId,
+                actions: [_copyAction(model.serverId)],
+              ),
+              const SizedBox(height: 18),
+              _quickField(
+                context,
+                label: translate('One-time Password'),
+                controller: model.serverPasswd,
+                actions: _passwordActions(model),
+              ),
+            ],
+          ),
+        ),
+        buildPluginEntry(),
+      ],
+    );
+  }
+
+  Widget _quickField(
+    BuildContext context, {
+    required String label,
+    required TextEditingController controller,
+    required List<Widget> actions,
+  }) {
+    final accent =
+        Theme.of(context).brightness == Brightness.dark ? MyTheme.brand : MyTheme.brandDark;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(width: 4, color: accent),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _machineField(
+              context,
+              label: label,
+              controller: controller,
+              actions: actions,
+              fontSize: 34,
+              labelSize: 15,
+              labelColor: accent,
+              labelWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickFooter(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark
+        ? Color.lerp(Theme.of(context).scaffoldBackgroundColor, Colors.white,
+            0.08)!
+        : const Color(0xFFECEEE9);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (bind.isCustomClient())
+          Align(alignment: Alignment.center, child: loadPowered(context)),
+        Container(
+          color: bg,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: const Row(children: [Flexible(child: OnlineStatusWidget())]),
+        ),
+      ],
     );
   }
 
@@ -467,8 +595,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     double? width,
     double fontSize = 21,
     double labelSize = 12,
+    Color? labelColor,
+    FontWeight labelWeight = FontWeight.normal,
   }) {
-    final labelColor =
+    labelColor ??=
         Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.5);
     // A read-only field rather than a Text: the numbers stay selectable, and
     // one too long for its box scrolls inside it instead of spilling over the
@@ -490,7 +620,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: labelSize, color: labelColor),
+          style: TextStyle(
+              fontSize: labelSize, color: labelColor, fontWeight: labelWeight),
         ),
         Row(
           mainAxisSize: width == null ? MainAxisSize.max : MainAxisSize.min,
@@ -509,6 +640,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     required IconData icon,
     required String tooltip,
     required VoidCallback onTap,
+    double size = 17,
   }) {
     final RxBool hover = false.obs;
     final textColor = Theme.of(context).textTheme.titleLarge?.color;
@@ -523,7 +655,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             padding: const EdgeInsets.all(4),
             child: Icon(
               icon,
-              size: 17,
+              size: size,
               color: hover.value ? textColor : textColor?.withOpacity(0.45),
             ),
           ),
@@ -1182,6 +1314,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _updateWindowSize();
       });
+    } else {
+      // Logging in or out swaps the whole page, and the two layouts want very
+      // different windows.
+      _loginWorker =
+          ever(gFFI.userModel.userName, (_) => updateQuickHomeWindowSize());
     }
     WidgetsBinding.instance.addObserver(this);
   }
@@ -1205,6 +1342,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _uniLinksSubscription?.cancel();
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
+    _loginWorker?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
