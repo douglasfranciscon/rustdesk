@@ -18,6 +18,43 @@ No fork, em **Settings → Secrets and variables → Actions**, devem existir es
 
 E em **Settings → Actions → General → Workflow permissions**, precisa estar marcado **"Read and write permissions"** (sem isso, a etapa que publica a release falha com erro 403).
 
+### Valores atuais dos servidores
+
+O GitHub não deixa reler um secret depois de salvo — só a data em que foi alterado. Então ficam registrados aqui (são hostnames públicos, não são segredo; o `RS_PUB_KEY` também é público por definição, mas fica só no secret pra não convidar cópia):
+
+```
+RENDEZVOUS_SERVER=brremoteserver.brproj.com.br
+API_SERVER=https://brsuporteapi.brproj.com.br
+```
+
+**São duas máquinas diferentes** — é o erro mais fácil de cometer aqui:
+
+| | `RENDEZVOUS_SERVER` | `API_SERVER` |
+|---|---|---|
+| Valor | `brremoteserver.brproj.com.br` | `https://brsuporteapi.brproj.com.br` |
+| Aponta pra | `br-bi-rustdesk.4yw6mk.easypanel.host` (31.97.94.206) | `apibrgde-…azurewebsites.net` (191.232.176.16) |
+| Formato | host puro — **sem** `https://`, **sem** `:21116` | URL completa **com** `https://`, sem barra no fim |
+| Protocolo | TCP/UDP 21116 (rendezvous) e 21117 (relay) | HTTPS |
+| Pra que serve | conectar as máquinas (ID, NAT traversal, relay) | login, address book, grupos, logs |
+| Obrigatório? | **sim** — sem ele o cliente não conecta em nada | não — sem ele o app deriva `host:21114` do rendezvous |
+| Onde é injetado no build | `libs/hbb_common/src/config.rs` (`RENDEZVOUS_SERVERS`) | `src/common.rs` (fallback de `get_api_server_`) |
+
+O `RS_PUB_KEY` pertence ao **hbbs**, não à API — ao trocar de servidor de rendezvous, os dois têm que mudar juntos, senão o cliente recusa a conexão. Trocar só o nome DNS apontando pra mesma máquina não exige chave nova.
+
+Pra conferir rapidamente se os valores estão sãos:
+
+```powershell
+# rendezvous: as duas portas têm que responder
+Test-NetConnection brremoteserver.brproj.com.br -Port 21116
+Test-NetConnection brremoteserver.brproj.com.br -Port 21117
+
+# api: tem que devolver JSON (e não o HTML de um site)
+Invoke-WebRequest https://brsuporteapi.brproj.com.br/api/login -Method Post -Body '{}' -ContentType application/json
+#   -> 200 {"error":"Usuário ou senha inválidos"}
+```
+
+Cuidado com nomes parecidos que **não** servem como rendezvous: `brremote.brproj.com.br`, `brsuporte.brproj.site` e `rustdeskapi.brproj.site` são todos alias do app web no Azure (191.232.176.16) e não escutam na 21116. Os nomes antigos `rustdesk.brproj.site` (rendezvous) e `rustdeskapi.brproj.site` (api) foram usados até jul/2026.
+
 ### Assinatura do Android
 
 O keystore usado pra assinar o `.apk` (RSA 2048, autoassinado, válido até 2056) **não fica neste repositório** (que é público) — ele está guardado no repositório privado [br-suporte-secrets](https://github.com/douglasfranciscon/br-suporte-secrets), junto com um `README-secrets.txt` com o alias e as duas senhas.
