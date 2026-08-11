@@ -3164,27 +3164,16 @@ Future<void> start_service(bool is_start) async {
   }
 }
 
+// Upstream greys the main window out while a session is running, so that whoever
+// is in control cannot change this machine's settings behind its owner's back.
+// Here it is the other way round: the person at the keyboard called for help, and
+// the settings that matter -- the access password above all -- are the ones the
+// technician is connected in order to set. Nothing is blocked.
+//
+// The connection manager, where the invitation is accepted or refused, passes no
+// `use` callback and keeps its own blocking.
 Future<bool> canBeBlocked() async {
-  if (isWeb) {
-    // Web can only act as a controller, never as a controlled side,
-    // so it should never be blocked by a remote session.
-    return false;
-  }
-  // First check control permission
-  final controlPermission = await bind.mainGetCommon(
-      key: "is-remote-modify-enabled-by-control-permissions");
-  if (controlPermission == "true") {
-    return false;
-  } else if (controlPermission == "false") {
-    return true;
-  }
-
-  // Check local settings
-  var accessMode = await bind.mainGetOption(key: kOptionAccessMode);
-  var isCustomAccessMode = accessMode != 'full' && accessMode != 'view';
-  var option = option2bool(kOptionAllowRemoteConfigModification,
-      await bind.mainGetOption(key: kOptionAllowRemoteConfigModification));
-  return accessMode == 'view' || (isCustomAccessMode && !option);
+  return false;
 }
 
 // to-do: web not implemented
