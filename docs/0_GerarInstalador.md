@@ -94,11 +94,24 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
   - `BRRemote-<versão>-x86_64.msi` → instalador Windows
   - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
 
+O `<versão>` dos arquivos do Windows tem quatro partes: `1.4.9.<n>`, onde `<n>` é o
+número da run do Actions (contador automático, sobe a cada build). Serve pra saber
+qual build é qual — o mesmo número aparece em Propriedades → Detalhes do `.exe` e na
+versão registrada em Programas e Recursos depois de instalar o `.msi`.
+
 ## 5. Testar
 
 - Instalar/rodar o `.msi` ou `.exe` numa máquina de teste
+- **Antes de testar qualquer coisa**, conferir o número da versão em Propriedades →
+  Detalhes do arquivo. É a única forma de garantir que a máquina está rodando o build
+  que você acabou de gerar, e não um anterior
 - Confirmar nome "BR Remote" e ícone corretos
 - Gerar um ID e testar conexão real com o servidor próprio
+
+⚠️ Ao instalar um `.msi` novo por cima de um instalado **antes** do contador existir: a
+versão registrada antigamente era um número enorme (minutos desde 1970), então o
+Windows Installer pode enxergar o pacote novo como mais antigo e recusar o upgrade.
+Nesse caso, desinstalar antes. O `.exe` portátil não tem esse problema.
 
 ## 6. Assinar o Windows (.exe / .msi) manualmente
 
