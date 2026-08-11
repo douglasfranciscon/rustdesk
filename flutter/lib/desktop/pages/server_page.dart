@@ -1224,9 +1224,14 @@ void checkClickTime(int id, Function() callback) async {
   });
 }
 
+// Always allowed here. Upstream hides this panel behind an option that is off by
+// default and exposed nowhere in the UI, on the assumption that the person at the
+// keyboard is the one who should be granting file transfer and clipboard - not the
+// side in control. In a support session the side in control is the one who was
+// called in to set those permissions, and the panel is unreachable to them until
+// someone edits a config file by hand.
 bool allowRemoteCMModification() {
-  return option2bool(kOptionAllowRemoteCmModification,
-      bind.mainGetLocalOption(key: kOptionAllowRemoteCmModification));
+  return true;
 }
 
 class _FileTransferLogPage extends StatefulWidget {

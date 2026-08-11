@@ -34,7 +34,7 @@ class DesktopHomePage extends StatefulWidget {
 const borderColor = MyTheme.accent;
 
 class _DesktopHomePageState extends State<DesktopHomePage>
-    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+    with AutomaticKeepAliveClientMixin {
   final _leftPaneScrollController = ScrollController();
 
   @override
@@ -52,7 +52,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
-  final RxBool _block = false.obs;
 
   final GlobalKey _childKey = GlobalKey();
 
@@ -84,10 +83,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     }));
   }
 
-  Widget _buildBlock({required Widget child}) {
-    return buildRemoteBlock(
-        block: _block, mask: true, use: canBeBlocked, child: child);
-  }
+  // Upstream drew a curtain over the home page whenever a session was running.
+  // Nothing does that here - see `allowRemoteCMModification` and the settings
+  // page - so the child is passed through untouched.
+  Widget _buildBlock({required Widget child}) => child;
 
   Widget buildLeftPane(BuildContext context) {
     final isIncomingOnly = bind.isIncomingOnly();
@@ -1329,7 +1328,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       _loginWorker =
           ever(gFFI.userModel.userName, (_) => updateQuickHomeWindowSize());
     }
-    WidgetsBinding.instance.addObserver(this);
   }
 
   _updateWindowSize() {
@@ -1352,16 +1350,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     Get.delete<RxBool>(tag: 'stop-service');
     _updateTimer?.cancel();
     _loginWorker?.dispose();
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      shouldBeBlocked(_block, canBeBlocked);
-    }
   }
 
   Widget buildPluginEntry() {

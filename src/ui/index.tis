@@ -1480,25 +1480,10 @@ function self.onMouse(evt) {
     }
 }
 
+// The overlay never comes up here: changing this machine's settings from a remote
+// session is what support staff connect in order to do. Kept in step with the
+// flutter UI, which drops the same curtain - see `allowRemoteCMModification`.
 function check_if_overlay() {
-    var enabled;
-    var is_enabled_by_control_permissions = handler.is_remote_modify_enabled_by_control_permissions();
-    if (is_enabled_by_control_permissions == "true") {
-        enabled = true;
-    } else if (is_enabled_by_control_permissions == "false") {
-        enabled = false;
-    } else {
-        enabled = handler.get_option('allow-remote-config-modification') == 'Y';
-    }
-    if (!enabled) {
-        var time0 = getTime();
-        handler.check_mouse_time();
-        self.timer(120ms, function() {
-            if (!enter) return;
-            var d = time0 - handler.get_mouse_time();
-            if (d < 120) $(#overlay).style#display = 'block';
-        });
-    }
 }
 
 checkConnectStatus();
