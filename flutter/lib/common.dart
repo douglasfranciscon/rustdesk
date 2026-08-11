@@ -3893,11 +3893,59 @@ bool get _canQuickHome =>
 bool get _isHomeTabSelected =>
     !Get.isRegistered<DesktopTabController>() || isInHomePage();
 
+/// The error `mainGetError` last reported, polled by the home page. It lives out
+/// here because the warning-card check below needs it before -- and without -- a
+/// home page widget.
+final homeSystemError = ''.obs;
+
+bool get _svcStopped =>
+    Get.isRegistered<RxBool>(tag: 'stop-service') &&
+    Get.find<RxBool>(tag: 'stop-service').value;
+
+bool get _showsPresetPasswordWarning =>
+    // `buildPresetPasswordWarning` also waits on `isPresetPassword()`, which is
+    // async and can only narrow this further. Answering before it settles keeps
+    // the window from being caught small under a warning that is already up.
+    bind.mainGetBuildinOption(key: kOptionRemovePresetPasswordWarning) == 'N';
+
+/// Whether the home page is currently showing a warning card above the two
+/// numbers. The pair of `buildHelpCards` in desktop_home_page.dart -- the two
+/// have to agree, so they change together. Only the quick home consults this,
+/// so the outgoing-only and incoming-only branches that function also covers
+/// are left out.
+bool homeShowsWarningCard() {
+  if (homeSystemError.value.isNotEmpty) return true;
+  if (_showsPresetPasswordWarning) return true;
+  if (isWindows) {
+    return !bind.isDisableInstallation() && !bind.mainIsInstalled();
+  }
+  if (isMacOS) {
+    return !bind.mainIsCanScreenRecording(prompt: false) ||
+        !bind.mainIsProcessTrusted(prompt: false) ||
+        !bind.mainIsCanInputMonitoring(prompt: false) ||
+        (!_svcStopped &&
+            bind.mainIsInstalled() &&
+            !bind.mainIsInstalledDaemon(prompt: false));
+  }
+  if (isLinux) {
+    return (bind.isSelinuxEnforcing() &&
+            bind.mainGetLocalOption(key: "show-selinux-help-tip") != 'N') ||
+        bind.mainCurrentIsWayland() ||
+        bind.mainIsLoginWayland();
+  }
+  return false;
+}
+
 /// Whether the window should currently be held at [kQuickHomeSize]. Settings
 /// and sessions open in this same window and need the full size, so the tab in
-/// front counts as much as the login state.
+/// front counts as much as the login state. A warning card counts too: it is
+/// laid out above the ID and password, and at this height it pushes them off
+/// the bottom of the window.
 bool isQuickHomeShown() =>
-    _canQuickHome && !gFFI.userModel.isLogin && _isHomeTabSelected;
+    _canQuickHome &&
+    !gFFI.userModel.isLogin &&
+    _isHomeTabSelected &&
+    !homeShowsWarningCard();
 
 Size storedMainWindowSize() {
   final lpos = LastWindowPosition.loadFromString(

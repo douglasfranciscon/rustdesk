@@ -39,7 +39,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   @override
   bool get wantKeepAlive => true;
-  var systemError = '';
   StreamSubscription? _uniLinksSubscription;
   var svcStopped = false.obs;
   var watchIsCanScreenRecording = false;
@@ -48,6 +47,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
   Worker? _loginWorker;
+  // Seeded with the state the window was already sized for at startup.
+  bool _showedWarningCard = homeShowsWarningCard();
   bool isCardClosed = false;
 
   final RxBool _editHover = false.obs;
@@ -911,8 +912,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   // lower version" one, which only ever fired on a developer machine running a
   // build newer than the copy installed there.
   Widget buildHelpCards() {
-    if (systemError.isNotEmpty) {
-      return buildInstallCard("", systemError, "", () {});
+    if (homeSystemError.value.isNotEmpty) {
+      return buildInstallCard("", homeSystemError.value, "", () {});
     }
 
     if (isWindows && !bind.isDisableInstallation()) {
@@ -1158,8 +1159,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     _updateTimer = periodic_immediate(const Duration(seconds: 1), () async {
       await gFFI.serverModel.fetchID();
       final error = await bind.mainGetError();
-      if (systemError != error) {
-        systemError = error;
+      if (homeSystemError.value != error) {
+        homeSystemError.value = error;
         setState(() {});
       }
       final v = await mainGetBoolOption(kOptionStopService);
@@ -1202,6 +1203,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           watchIsCanRecordAudio = false;
           setState(() {});
         }
+      }
+      // A card appearing or going away changes how much room the page needs.
+      // Compared here rather than on every tick so the window is only measured
+      // when the answer can have changed.
+      final showsWarning = homeShowsWarningCard();
+      if (showsWarning != _showedWarningCard) {
+        _showedWarningCard = showsWarning;
+        await updateQuickHomeWindowSize();
       }
     });
     Get.put<RxBool>(svcStopped, tag: 'stop-service');
