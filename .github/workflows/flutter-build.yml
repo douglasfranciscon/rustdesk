@@ -51,6 +51,13 @@ env:
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
   VERSION: "1.4.9"
+  # CUSTOM BRANDING: every build used to come out as plain 1.4.9, so there was no way
+  # to tell which binary a machine was running. github.run_number counts up once per
+  # run of the calling workflow and becomes the fourth component: 1.4.9.<n>. It ends
+  # up in the artifact names, in the exe's file properties and in the version the
+  # installer registers, so all three agree. Note it is counted per calling workflow -
+  # builds come out of "Flutter Nightly Build", so that sequence is the continuous one.
+  BUILD_NUMBER: "${{ github.run_number }}"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
@@ -151,6 +158,12 @@ jobs:
           # Same no-push-access submodule as the patches above.
           sed -i 's#self.get_string(key, "original", vec!\["adaptive"\])#self.get_string(key, "adaptive", vec!["original"])#' libs/hbb_common/src/config.rs
           sed -i 's#self.get_string(key, "balanced", vec!\["best", "low", "custom"\])#self.get_string(key, "best", vec!["balanced", "low", "custom"])#' libs/hbb_common/src/config.rs
+          # Stamp the build number where Windows shows it. pubspec's build metadata
+          # becomes FLUTTER_VERSION_BUILD -> the runner exe's FILEVERSION, and winres
+          # writes the portable packer's version strings from its Cargo metadata (the
+          # ProductVersion key ships commented out).
+          sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -373,7 +386,7 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/BRRemote.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRRemote-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRRemote-${{ env.VERSION }}.${{ env.BUILD_NUMBER }}-${{ matrix.job.arch }}.exe
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
@@ -385,12 +398,16 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk --app-name "BRRemote"
+          # Without --revision-version the script invents one from the clock (minutes
+          # since 1970), which is what put an unrecognisable number in Programs and
+          # Features. Hand it the build number so the installed version matches the
+          # file name and the exe properties.
+          python preprocess.py --arp -d ../../rustdesk --app-name "BRRemote" --revision-version ${{ env.BUILD_NUMBER }}
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
-          mv $msi.FullName ../../SignOutput/BRRemote-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
+          mv $msi.FullName ../../SignOutput/BRRemote-${{ env.VERSION }}.${{ env.BUILD_NUMBER }}-${{ matrix.job.arch }}.msi
           sha256sum ../../SignOutput/BRRemote-*.msi
 
       - name: Sign rustdesk self-extracted file
@@ -470,6 +487,12 @@ jobs:
           # Same no-push-access submodule as the patches above.
           sed -i 's#self.get_string(key, "original", vec!\["adaptive"\])#self.get_string(key, "adaptive", vec!["original"])#' libs/hbb_common/src/config.rs
           sed -i 's#self.get_string(key, "balanced", vec!\["best", "low", "custom"\])#self.get_string(key, "best", vec!["balanced", "low", "custom"])#' libs/hbb_common/src/config.rs
+          # Stamp the build number where Windows shows it. pubspec's build metadata
+          # becomes FLUTTER_VERSION_BUILD -> the runner exe's FILEVERSION, and winres
+          # writes the portable packer's version strings from its Cargo metadata (the
+          # ProductVersion key ships commented out).
+          sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       - name: Install LLVM and Clang
         uses: rustdesk-org/install-llvm-action-32bit@6aa7d9ad3df84dff01cd4596dd0fc880a7f47fce # no release tag; commit 2026-05-26
@@ -574,7 +597,7 @@ jobs:
           python3 ./generate.py -f ../../Release/ -o . -e ../../Release/BRRemote.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRRemote-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/BRRemote-${{ env.VERSION }}.${{ env.BUILD_NUMBER }}-${{ matrix.job.arch }}-sciter.exe
 
       - name: Sign rustdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
@@ -1089,6 +1112,12 @@ jobs:
           # Same no-push-access submodule as the patches above.
           sed -i 's#self.get_string(key, "original", vec!\["adaptive"\])#self.get_string(key, "adaptive", vec!["original"])#' libs/hbb_common/src/config.rs
           sed -i 's#self.get_string(key, "balanced", vec!\["best", "low", "custom"\])#self.get_string(key, "best", vec!["balanced", "low", "custom"])#' libs/hbb_common/src/config.rs
+          # Stamp the build number where Windows shows it. pubspec's build metadata
+          # becomes FLUTTER_VERSION_BUILD -> the runner exe's FILEVERSION, and winres
+          # writes the portable packer's version strings from its Cargo metadata (the
+          # ProductVersion key ships commented out).
+          sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -1389,6 +1418,12 @@ jobs:
           # Same no-push-access submodule as the patches above.
           sed -i 's#self.get_string(key, "original", vec!\["adaptive"\])#self.get_string(key, "adaptive", vec!["original"])#' libs/hbb_common/src/config.rs
           sed -i 's#self.get_string(key, "balanced", vec!\["best", "low", "custom"\])#self.get_string(key, "best", vec!["balanced", "low", "custom"])#' libs/hbb_common/src/config.rs
+          # Stamp the build number where Windows shows it. pubspec's build metadata
+          # becomes FLUTTER_VERSION_BUILD -> the runner exe's FILEVERSION, and winres
+          # writes the portable packer's version strings from its Cargo metadata (the
+          # ProductVersion key ships commented out).
+          sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       - name: Install flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
