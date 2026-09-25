@@ -15,6 +15,7 @@ No fork, em **Settings → Secrets and variables → Actions**, devem existir es
 | `ANDROID_ALIAS` | Alias da chave dentro do keystore |
 | `ANDROID_KEY_STORE_PASSWORD` | Senha do keystore |
 | `ANDROID_KEY_PASSWORD` | Senha da chave |
+| `BRAND_ASSETS_TOKEN` | Só para gerar com a logo de outro cliente — ver [1_MarcasAlternativas.md](1_MarcasAlternativas.md) |
 
 E em **Settings → Actions → General → Workflow permissions**, precisa estar marcado **"Read and write permissions"** (sem isso, a etapa que publica a release falha com erro 403).
 
@@ -76,7 +77,10 @@ Sem esses 4 secrets configurados, o workflow ainda funciona, mas publica o `.apk
 4. Marque a branch `master`
 5. Se quiser gerar **só o Windows** (mais rápido, não espera Android/Linux/macOS/iOS/web): marque a caixinha **"Build only Windows..."**
    - Deixe desmarcada se também quiser o `.apk` do Android
-6. Clique em **Run workflow**
+6. **"Marca: pasta de logos a usar"**: deixe **vazio** para o BR Remote de sempre. Preenchendo
+   (ex.: `invicta`), o build sai com a logo daquela marca e publica numa release separada —
+   ver [1_MarcasAlternativas.md](1_MarcasAlternativas.md)
+7. Clique em **Run workflow**
 
 ## 3. Acompanhar
 
@@ -93,6 +97,10 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
   - `BRRemote-<versão>-x86_64.exe` → executável autoextraível, arquivo único
   - `BRRemote-<versão>-x86_64.msi` → instalador Windows
   - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
+
+Se o build foi gerado **com marca**, os arquivos não vão para a release `nightly`, e sim para
+uma release própria da marca — `nightly-invicta`, por exemplo. Os nomes dos arquivos são os
+mesmos (`BRRemote-…`), e é justamente por isso que a release é separada.
 
 O `<versão>` dos arquivos do Windows tem quatro partes: `1.4.9.<n>`, onde `<n>` é o
 número da run do Actions (contador automático, sobe a cada build). Serve pra saber

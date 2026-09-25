@@ -1,0 +1,55 @@
+# Every path in this repository that carries the product's visual identity.
+# A brand folder (see docs/1_MarcasAlternativas.md) mirrors these paths; apply-brand.sh
+# warns about the ones a brand does not override, so nothing is forgotten by accident.
+#
+# Lines starting with # are comments. Paths are relative to the repository root.
+
+# --- Windows icons ---
+res/icon.ico
+res/tray-icon.ico
+flutter/windows/runner/resources/app_icon.ico
+
+# --- In-app artwork (all platforms) ---
+flutter/assets/icon.png
+flutter/assets/logo.png
+flutter/assets/logo_light.png
+flutter/assets/logo_dark.png
+
+# --- Linux / macOS packaging icons ---
+res/32x32.png
+res/64x64.png
+res/128x128.png
+res/128x128@2x.png
+
+# --- Android launcher icon (5 densities x 3 layers) ---
+flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+flutter/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+flutter/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+flutter/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+flutter/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+flutter/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+flutter/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+flutter/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+flutter/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+flutter/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+
+# --- Still carrying upstream RustDesk artwork; a brand may override them too ---
+libs/portable/src/res/label.png
+flutter/assets/icon.svg
+flutter/android/app/src/main/res/mipmap-mdpi/ic_stat_logo.png
+flutter/android/app/src/main/res/mipmap-hdpi/ic_stat_logo.png
+flutter/android/app/src/main/res/mipmap-xhdpi/ic_stat_logo.png
+flutter/android/app/src/main/res/mipmap-xxhdpi/ic_stat_logo.png
+flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_stat_logo.png
+res/icon.png
+res/mac-icon.png
+res/mac-tray-dark-x2.png
+res/mac-tray-light-x2.png
+res/scalable.svg
+res/logo.svg
+flutter/macos/Runner/AppIcon.icns

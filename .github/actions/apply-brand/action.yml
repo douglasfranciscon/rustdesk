@@ -1,0 +1,59 @@
+# CUSTOM BRANDING: swap the icons/logos for another brand's before the build starts.
+#
+# The artwork itself lives in a private repository (this one is public), one folder
+# per brand, each mirroring this repository's layout. See docs/1_MarcasAlternativas.md.
+name: Apply brand
+description: Replace the product's icons and logos with a brand folder from the private assets repository.
+
+inputs:
+  brand:
+    description: 'Folder name under marcas/ in the assets repository. Empty keeps the committed artwork.'
+    required: false
+    default: ''
+  token:
+    description: 'Token with read access to the assets repository. Required when brand is set.'
+    required: false
+    default: ''
+  assets-repo:
+    description: 'Repository holding the brand folders.'
+    required: false
+    default: 'douglasfranciscon/br-suporte-secrets'
+
+runs:
+  using: composite
+  steps:
+    - name: Decide whether a brand has to be applied
+      id: decide
+      shell: bash
+      env:
+        BRAND: ${{ inputs.brand }}
+        TOKEN: ${{ inputs.token }}
+      run: |
+        if [ -z "$BRAND" ]; then
+          echo "apply-brand: no brand requested, building with the committed artwork."
+          echo "apply=false" >> "$GITHUB_OUTPUT"
+        elif [ -z "$TOKEN" ]; then
+          # Failing here beats building the wrong-looking installer silently.
+          echo "::error::brand '$BRAND' was requested but the assets token is empty (secret BRAND_ASSETS_TOKEN)."
+          exit 1
+        else
+          echo "apply=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Fetch brand assets
+      if: steps.decide.outputs.apply == 'true'
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      with:
+        repository: ${{ inputs.assets-repo }}
+        token: ${{ inputs.token }}
+        path: .brand-assets
+
+    - name: Apply brand
+      if: steps.decide.outputs.apply == 'true'
+      shell: bash
+      env:
+        BRAND: ${{ inputs.brand }}
+      run: |
+        bash res/brand/apply-brand.sh ".brand-assets/marcas/$BRAND"
+        # Drop the checkout so no later step can package somebody else's artwork.
+        rm -rf .brand-assets

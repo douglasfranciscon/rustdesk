@@ -10,6 +10,12 @@ on:
         description: "Build only Windows (skip Android/Linux/macOS/iOS/web)"
         type: boolean
         default: false
+      # CUSTOM BRANDING: which folder of logos/icons to build with. The folders
+      # live in the private assets repository, one per brand.
+      brand:
+        description: "Marca: pasta de logos a usar (vazio = BR Remote padrão)"
+        type: string
+        default: ""
 
 jobs:
   run-flutter-nightly-build:
@@ -17,5 +23,8 @@ jobs:
     secrets: inherit
     with:
       upload-artifact: true
-      upload-tag: "nightly"
+      # CUSTOM BRANDING: each brand publishes to its own release, otherwise the
+      # second brand's files would overwrite the first one's (same file names).
+      upload-tag: ${{ inputs.brand != '' && format('nightly-{0}', inputs.brand) || 'nightly' }}
       windows-only: ${{ inputs.windows-only == true }}
+      brand: ${{ inputs.brand || '' }}
