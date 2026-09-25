@@ -100,7 +100,9 @@ if [ -f "$KNOWN_PATHS" ]; then
             [ "$rel" = "$known" ] && { covered=1; break; }
         done
         [ "$covered" -eq 0 ] && missing+=("$known")
-    done < "$KNOWN_PATHS"
+    # tr strips the CR that a CRLF checkout (Windows runners) would leave on
+    # every line, which would otherwise make each path look uncovered.
+    done < <(tr -d '\r' < "$KNOWN_PATHS")
 
     if [ "${#missing[@]}" -gt 0 ]; then
         echo "apply-brand: not overridden by this brand (keeping what is committed):"

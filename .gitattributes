@@ -3,3 +3,4 @@
 # CUSTOM BRANDING: this one runs under bash on the Windows runners too, where a
 # CRLF checkout would break it on the very first line.
 res/brand/apply-brand.sh text eol=lf
+res/brand/paths.txt text eol=lf
