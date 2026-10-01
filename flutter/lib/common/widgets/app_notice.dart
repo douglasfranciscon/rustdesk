@@ -8,8 +8,9 @@
 // a 404, a timeout, a body that is not that JSON - shows nothing: the app must
 // open the same whether or not the back is there.
 //
-// The version is a date, "YYYY.MM.DD" (build_info.dart): the app offers the
-// download when its own date is older than the announced one. Zero-padded, the
+// The version is a date, "YYYY.MM.DD" (build_info.dart), and the announced one
+// is a cutoff - the oldest build still acceptable, not the newest published:
+// the app offers the download when its own date is older. Zero-padded, the
 // text sorts like the calendar, so no parsing; a value in any other shape, on
 // either side, offers nothing - a typo must not nag every client at once.
 // See docs/0_GerarInstalador.md.
@@ -108,13 +109,17 @@ Future<void> _showMessage(String message) async {
   }, tag: 'app-notice-message');
 }
 
-Future<bool?> _askDownload(String version) {
+// `cutoff` is the minimum, not the newest: the folder may hold a later build,
+// so the text names the user's version as outdated rather than promising which
+// one the download brings.
+Future<bool?> _askDownload(String cutoff) {
   return gFFI.dialogManager.show<bool>((setState, close, context) {
     submit() => close(true);
     return CustomAlertDialog(
       title: const Text('Nova versão disponível'),
-      content: Text('Você está com a versão de $kBrVersion, e já existe a de '
-          '$version.\n\nDeseja baixar agora? O download abre no navegador.'),
+      content: Text('A sua versão, de $kBrVersion, está desatualizada: a mínima '
+          'recomendada é a de $cutoff.\n\nDeseja baixar a versão atual agora? '
+          'O download abre no navegador.'),
       actions: [
         dialogButton('Não', onPressed: close, isOutline: true),
         dialogButton('Sim', onPressed: submit),

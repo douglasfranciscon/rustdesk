@@ -151,13 +151,13 @@ Ao abrir, o app no Windows consulta o servidor de API (`GET /api/aviso-app`, sem
 o app é o cliente, que nunca loga) e pode mostrar duas janelas:
 
 - **Mensagem:** um texto seu, com botão OK, **toda vez que o app abrir** enquanto houver mensagem.
-- **Versão nova:** se a versão do app for **mais antiga** que a anunciada, pergunta se quer baixar.
-  **Sim** abre o download no navegador; **Não** fecha. Nada é instalado sozinho, e a pergunta
-  volta a cada abertura enquanto a versão continuar mais antiga.
+- **Versão nova:** se a versão do app for **anterior ao corte** (a versão mínima que você exige),
+  pergunta se quer baixar. **Sim** abre o download no navegador; **Não** fecha. Nada é instalado
+  sozinho, e a pergunta volta a cada abertura enquanto a versão continuar abaixo do corte.
 
-Os três valores (versão, pasta do download e mensagem) ficam nas **App Settings** do servidor de API
+Os três valores (corte, pasta do download e mensagem) ficam nas **App Settings** do servidor de API
 no Azure, não neste repositório — os nomes exatos estão com o back (apiGDe, `brsuporte`). Vazio
-desliga: sem mensagem não há janela; sem versão ou sem pasta não há oferta de download. Se o
+desliga: sem mensagem não há janela; sem corte ou sem pasta não há oferta de download. Se o
 servidor estiver fora do ar, o app abre normalmente, sem aviso nenhum.
 
 ### A versão é a data do build
@@ -167,11 +167,30 @@ Cada build grava a **data em que foi gerado**, no horário de Brasília, como `A
 e no log do passo "Patch custom rendezvous server" (`BR version: 2026.10.15`). É a mesma para todas
 as marcas geradas no mesmo dia e não tem nada a ver com o `1.4.9.<run>` das propriedades do `.exe`.
 
-O app avisa quando a data **dele** é **anterior** à anunciada. Por isso, ao publicar uma leva,
-anuncie a data do build **mais antigo** dela: gerou o padrão em 15/10 e a Invicta em 16/10, anuncie
-`2026.10.15` — senão o padrão de 15/10 ficaria pedindo para baixar ele mesmo.
+### A versão anunciada é um corte, não "a mais nova"
 
-⚠️ A versão anunciada tem que estar **exatamente** em `AAAA.MM.DD`, com zeros (`2026.10.05`, não
+O app avisa quando a data **dele** é **anterior** ao corte. Por isso **publicar um build não exige
+mexer na App Setting**: você pode lançar várias versões em silêncio, deixar os primeiros adotarem,
+e só **subir o corte** quando quiser mover todo mundo — é aí, e só aí, que os de baixo são avisados.
+Ficar com o corte parado por vários lançamentos é o normal; o que não pode é esquecer de subi-lo
+quando quiser que os clientes atualizem.
+
+Ao subir, use a data do build **mais antigo** que você quer considerar em dia: gerou o padrão em
+15/10 e a Invicta em 16/10, corte em `2026.10.15` — senão o padrão de 15/10 ficaria pedindo para
+baixar ele mesmo. O download leva sempre ao arquivo que estiver na pasta, que pode ser mais novo
+que o corte.
+
+⚠️ **Arquivo primeiro, corte depois — e o corte nunca acima da data de algum arquivo da pasta.**
+O app não sabe a data do que está na pasta antes de baixar, e o servidor não olha a pasta. Se o
+corte passar da data de um dos `.exe` (o padrão ou o de alguma marca), quem baixa esse arquivo
+continua abaixo do corte, e o aviso volta a cada abertura, para sempre. O sintoma chega como
+"atualizei e ele pede de novo", longe da causa.
+
+O corte é **um só**, para todas as marcas. E não serve para voltar atrás: um corte mais velho não
+avisa ninguém. Build ruim se corrige recompilando o commit bom — ele sai com a data do dia — e
+subindo o corte para ela.
+
+⚠️ O corte tem que estar **exatamente** em `AAAA.MM.DD`, com zeros (`2026.10.05`, não
 `2026.10.5`). Fora desse formato o app não oferece nada — um erro de digitação não dispara aviso
 em todo mundo, mas também não avisa ninguém. Build local (fora do GitHub) não tem data e nunca avisa.
 
@@ -181,8 +200,10 @@ em todo mundo, mas também não avisa ninguém. Build local (fora do GitHub) nã
 2. Suba na pasta do download, **sem versão no nome**:
    - `BRRemote-x86_64.exe` — o padrão
    - `BRRemote-x86_64_<pasta>.exe` — cada marca (ex.: `BRRemote-x86_64_invicta.exe`)
-3. Nas App Settings, ponha a versão (data do build mais antigo da leva) e a pasta do download
-   (ex.: `https://brprojbackupapp.s3.sa-east-1.amazonaws.com/BRRemote/`).
+3. Pronto: quem baixar agora pega a leva nova. Só quando quiser **avisar** quem ficou para trás,
+   e **depois** que todos os `.exe` da leva estiverem na pasta, suba o corte nas App Settings
+   (produção **e** o slot `apibrgdedeploy`) até, no máximo, a data do build mais antigo da leva. A pasta do download
+   (ex.: `https://brprojbackupapp.s3.sa-east-1.amazonaws.com/BRRemote/`) só se configura uma vez.
 
 O app monta o nome do arquivo sozinho: pasta + `BRRemote-x86_64` + `_<pasta da marca>` (só em build
 de marca) + `.exe`. Esse nome mora no código (`flutter/lib/common/widgets/app_notice.dart`); se um
