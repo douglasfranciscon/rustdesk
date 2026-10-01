@@ -82,8 +82,8 @@ um dia aparecer como desabilitado, foi desligado à mão no GitHub, não pelo re
 5. Se quiser gerar **só o Windows** (mais rápido, não espera Android/Linux/macOS/iOS/web): marque a caixinha **"Build only Windows..."**
    - Deixe desmarcada se também quiser o `.apk` do Android
 6. **"Marca: pasta de logos a usar"**: deixe **vazio** para o BR Remote de sempre. Preenchendo
-   (ex.: `invicta`), o build sai com a logo daquela marca, o site dela no "Website" do Sobre e
-   o nome da pasta no título ("BR Remote - Invicta"), e publica numa release separada — ver
+   (ex.: `invicta`), o build sai com a logo e a cor daquela marca, o site dela no "Website" do
+   Sobre e o nome da pasta no título ("BR Remote - Invicta"), e publica numa release separada — ver
    [1_MarcasAlternativas.md](1_MarcasAlternativas.md)
 7. Clique em **Run workflow**
 

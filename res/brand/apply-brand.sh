@@ -15,8 +15,9 @@
 # it is a typo: the file would be copied somewhere nothing reads, and the build would
 # quietly ship the old artwork. That is an error, not a warning.
 #
-# Besides artwork, the folder's name goes into the title bar and an optional
-# site.txt at its root sets the "Website" links; both land in flutter/lib/brand.dart.
+# Besides artwork, the folder's name goes into the title bar, an optional site.txt
+# at its root sets the "Website" links and an optional cor.txt the app's colours;
+# all of it lands in flutter/lib/brand.dart.
 #
 # See docs/1_MarcasAlternativas.md.
 
@@ -49,6 +50,8 @@ KNOWN_PATHS="$REPO_ROOT/res/brand/paths.txt"
 
 BRAND_DART="$REPO_ROOT/flutter/lib/brand.dart"
 SITE_FILE="site.txt"
+COLOR_FILE="cor.txt"
+COLORS_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/brand_colors.py"
 
 # Documentation that travels with a brand folder but is not part of the product.
 is_doc() {
@@ -60,9 +63,17 @@ is_doc() {
 
 # --- What the brand changes besides artwork (flutter/lib/brand.dart) ----------
 #
-# The folder name labels the title bar ("BR Remote - Invicta"), and site.txt, when
-# the folder has one, is where the "Website" links go. Both are validated before
-# anything is copied: a bad value must stop the build, not ship a broken link.
+# The folder name labels the title bar ("BR Remote - Invicta"), site.txt is where
+# the "Website" links go and cor.txt is the brand's main colour, each file only if
+# the folder has one. All are validated before anything is copied: a bad value must
+# stop the build, not ship a broken link or an unreadable button.
+
+# A one-value text file as a person saves it: drop a BOM and CRs (Notepad, CRLF
+# checkouts), surrounding spaces and blank lines.
+read_value_file() {
+    sed '1s/^\xEF\xBB\xBF//' "$1" | tr -d '\r' \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$' || true
+}
 
 brand_name="$(basename "$BRAND_DIR")"
 case "$brand_name" in
@@ -77,10 +88,8 @@ fi
 
 brand_site=""
 if [ -f "$BRAND_DIR/$SITE_FILE" ]; then
-    # Drop a BOM and CRs (Notepad, CRLF checkouts), blank lines and surrounding
-    # spaces; then a scheme and trailing slash, since the app adds https:// itself.
-    brand_site="$(sed '1s/^\xEF\xBB\xBF//' "$BRAND_DIR/$SITE_FILE" | tr -d '\r' \
-        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$' || true)"
+    # Without scheme and trailing slash, since the app adds https:// itself.
+    brand_site="$(read_value_file "$BRAND_DIR/$SITE_FILE")"
     brand_site="${brand_site#http://}"
     brand_site="${brand_site#https://}"
     brand_site="${brand_site%/}"
@@ -89,6 +98,46 @@ if [ -f "$BRAND_DIR/$SITE_FILE" ]; then
     if ! [[ "$brand_site" =~ $site_re ]]; then
         echo "apply-brand: $SITE_FILE must hold one site, like www.example.com.br; found:" >&2
         sed 's/^/  | /' "$BRAND_DIR/$SITE_FILE" >&2
+        exit 1
+    fi
+fi
+
+brand_color=""
+brand_palette=""
+if [ -f "$BRAND_DIR/$COLOR_FILE" ]; then
+    brand_color="$(read_value_file "$BRAND_DIR/$COLOR_FILE")"
+    brand_color="${brand_color#\#}"
+    color_re='^[0-9A-Fa-f]{6}$'
+    if ! [[ "$brand_color" =~ $color_re ]]; then
+        echo "apply-brand: $COLOR_FILE must hold one colour, like #0070C8; found:" >&2
+        sed 's/^/  | /' "$BRAND_DIR/$COLOR_FILE" >&2
+        exit 1
+    fi
+    brand_color="#$(printf '%s' "$brand_color" | tr 'a-f' 'A-F')"
+
+    # The other tones are derived (brand_colors.py says how), with whichever Python
+    # runs here: on Windows "python3" can be a Store stub that runs nothing.
+    py=""
+    for candidate in python3 python; do
+        if "$candidate" -c 'import colorsys' >/dev/null 2>&1; then
+            py="$candidate"
+            break
+        fi
+    done
+    if [ -z "$py" ]; then
+        echo "apply-brand: $COLOR_FILE needs Python to derive the palette, and none runs here" >&2
+        exit 1
+    fi
+    # tr: Python on Windows ends its lines in CRLF.
+    if ! brand_palette="$("$py" "$COLORS_PY" "$brand_color" | tr -d '\r')"; then
+        echo "apply-brand: brand_colors.py failed for $brand_color" >&2
+        exit 1
+    fi
+    palette_line='kBrand[A-Za-z]+=0xFF[0-9A-F]{6}'
+    palette_re="^($palette_line"$'\n'"){4}$palette_line\$"
+    if ! [[ "$brand_palette" =~ $palette_re ]]; then
+        echo "apply-brand: brand_colors.py gave an unexpected palette:" >&2
+        printf '%s\n' "$brand_palette" | sed 's/^/  | /' >&2
         exit 1
     fi
 fi
@@ -102,6 +151,7 @@ while IFS= read -r abs; do
     rel="${abs#$BRAND_DIR/}"
     is_doc "$rel" && continue
     [ "$rel" = "$SITE_FILE" ] && continue   # data, read above - not artwork
+    [ "$rel" = "$COLOR_FILE" ] && continue  # same
     if [ -f "$REPO_ROOT/$rel" ]; then
         assets+=("$rel")
     else
@@ -143,6 +193,16 @@ set_brand_const() {
     fi
 }
 
+# Same, for the 0xAARRGGBB colour constants; their trailing comment survives.
+set_brand_int() {
+    local name="$1" value="$2"
+    sed -i "s|^const int $name = 0x[0-9A-Fa-f]\{8\};|const int $name = $value;|" "$BRAND_DART"
+    if ! grep -Fq "const int $name = $value;" "$BRAND_DART"; then
+        echo "apply-brand: could not set $name in $BRAND_DART" >&2
+        exit 1
+    fi
+}
+
 set_brand_const kBrandFolder "$brand_name"
 echo "  title     ${brand_name:-(no suffix)}"
 if [ -n "$brand_site" ]; then
@@ -150,6 +210,15 @@ if [ -n "$brand_site" ]; then
     echo "  website   $brand_site"
 else
     echo "  website   (no $SITE_FILE in the brand folder, keeping the default)"
+fi
+if [ -n "$brand_palette" ]; then
+    echo "  color     $brand_color"
+    while IFS='=' read -r name value; do
+        set_brand_int "$name" "$value"
+        echo "              $name = $value"
+    done <<< "$brand_palette"
+else
+    echo "  color     (no $COLOR_FILE in the brand folder, keeping the default)"
 fi
 
 # --- Remind about the branding paths this brand did not cover ----------------

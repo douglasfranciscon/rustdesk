@@ -4,11 +4,11 @@ O mesmo aplicativo pode sair com outro conjunto de logos e ícones — para um c
 suporte remoto com a cara dele. A escolha é feita **na hora de rodar o build**, num campo a mais
 do "Run workflow": nada de commit, nada de trocar arquivo no repositório.
 
-> **Muda a arte, o site e um sufixo no título.** Além das logos, o build mostra o nome da pasta
-> no título da janela ("BR Remote - Invicta") e aponta o "Website" para o site da marca (ver
-> "O site da marca"). Nome do programa ("BR Remote"), serviço, pasta de instalação, cores do app,
-> servidor e chave continuam os mesmos em todas as marcas. Ver "O que a marca **não** troca", no
-> fim.
+> **Muda a arte, a cor, o site e um sufixo no título.** Além das logos, o build pinta o app com
+> a cor da marca (ver "A cor da marca"), mostra o nome da pasta no título da janela ("BR Remote -
+> Invicta") e aponta o "Website" para o site da marca (ver "O site da marca"). Nome do programa
+> ("BR Remote"), serviço, pasta de instalação, servidor e chave continuam os mesmos em todas as
+> marcas. Ver "O que a marca **não** troca", no fim.
 
 ## Como está organizado
 
@@ -18,13 +18,17 @@ pasta por marca:
 
 ```
 marcas/
-  brremote/      <- a arte padrão de hoje (referência de tamanhos)
-  invicta/       <- por enquanto, cópia da brremote (placeholder)
+  0modelo/       <- gabarito: tamanhos e arquivos que toda marca tem
+  brremote/      <- a marca padrão BR Remote (copie esta para criar uma nova)
+  invicta/       <- marca Invicta Tecnologia
 ```
 
-Dentro de cada pasta, **os arquivos ficam no mesmo caminho que têm neste repositório**:
+Dentro de cada pasta, **os arquivos de arte ficam no mesmo caminho que têm neste repositório**,
+e na raiz ficam o site e a cor do cliente:
 
 ```
+marcas/invicta/site.txt
+marcas/invicta/cor.txt
 marcas/invicta/res/icon.ico
 marcas/invicta/flutter/assets/logo.png
 marcas/invicta/flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
@@ -42,7 +46,8 @@ quem for desenhar), e `res/brand/paths.txt` lista todos os caminhos de marca con
 1. No `br-suporte-secrets`, copie `marcas/brremote` para `marcas/<codinome>`.
 2. Substitua os arquivos pela arte do cliente, **mantendo caminho e tamanho** (a tabela está no
    `LEIAME.md` que veio junto). Pode trocar só alguns.
-3. Ponha na raiz da pasta um `site.txt` com o site do cliente (ver abaixo).
+3. Troque, na raiz da pasta, o `site.txt` pelo site do cliente e o `cor.txt` pela cor principal
+   do logo dele (ver abaixo). Os dois vieram do `brremote` com os valores da BR PROJ.
 4. Commit e push no `br-suporte-secrets`.
 
 ⚠️ O **nome da pasta aparece no título da janela**, com a primeira letra maiúscula: a pasta
@@ -65,8 +70,40 @@ site (vazio, duas linhas, aspas, espaço), o build **falha** no passo "Apply bra
 conteúdo do arquivo — melhor do que sair um instalador com link quebrado.
 
 A faixa larga da tela Sobre (`flutter/assets/logo.png`) traz o domínio desenhado na imagem, e o
-`gerar_marca.py` o tira do `Criar/site.txt`. Os dois devem dizer o mesmo site: ao gerar uma marca,
-copie o `Criar/site.txt` para dentro da pasta dela.
+`gerar_marca.py` o tira do `Criar/site.txt` — e grava o mesmo `site.txt` dentro da pasta da
+marca, para os dois dizerem sempre o mesmo site.
+
+## A cor da marca
+
+Um arquivo **`cor.txt`** na raiz da pasta da marca, ao lado do `site.txt`, com a cor principal do
+logo do cliente em hexadecimal. Uma linha só:
+
+```
+#0070C8
+```
+
+O `#` é opcional; minúscula, BOM e quebra de linha do Windows são aceitos. **Sem** `cor.txt`, o
+app sai no verde da BR PROJ. Com um `cor.txt` que não seja uma cor de 6 dígitos (texto, `#07C`,
+duas cores), o build **falha** no "Apply brand".
+
+O app não usa uma cor só, usa cinco tons dela, e o build deriva os outros quatro da cor dada
+(`res/brand/brand_colors.py`), mantendo o matiz e mudando só a luminosidade:
+
+| tom | onde aparece | como sai |
+|---|---|---|
+| a cor | ID, detalhes de marca | a cor do `cor.txt`, sem mudança |
+| destaque | botões, chaves, abas, seleção (texto branco em cima) | a própria cor, se já tiver contraste 4,5:1 com branco; senão, escurecida até ter |
+| escuro | texto e ícone de marca sobre fundo claro | escurecida até 5:1 contra o fundo claro |
+| ID da janela de conexão | o ID de quem está conectando | igual ao escuro |
+| fundo claro | fundos claros tingidos de leve com a cor | a cor bem clara e quase cinza |
+
+Por isso, **escolha a cor que representa o cliente**, não a mais legível: se ela for clara demais
+para botão, o build escurece só o botão. O azul da Invicta (`#0070C8`) já tem 5:1 e sai igual; o
+verde-menta do mesmo logo (`#00D078`) viraria um verde-petróleo nos botões.
+
+Não mudam com a marca, de propósito: os verdes de "deu certo" do RustDesk (mensagem de sucesso,
+regra de senha cumprida), que significam "ok" e não "marca", e as cores da interface antiga do
+Windows 32 bits (Sciter), que são outras.
 
 ⚠️ **Use codinome, não o nome do cliente.** O valor digitado no "Run workflow" aparece na página
 da execução, que é pública neste fork.
@@ -106,12 +143,14 @@ assets" falhando com 404/403 no clone.
 ## Conferir o resultado
 
 1. Na execução, abra o passo **"Apply brand"**: ele lista cada arquivo substituído
-   (`replaced  res/icon.ico`), o sufixo do título e o site gravados (`title  invicta`,
-   `website  www.invictatecnologia.com.br`) e, no fim, os caminhos de marca que **não** foram
-   trocados (`kept  ...`) — é o lembrete do que ainda falta desenhar.
+   (`replaced  res/icon.ico`), o sufixo do título, o site e a cor gravados (`title  invicta`,
+   `website  www.invictatecnologia.com.br`, `color  #0070C8` com os cinco tons) e, no fim, os
+   caminhos de marca que **não** foram trocados (`kept  ...`) — é o lembrete do que ainda falta
+   desenhar.
 2. No instalador baixado, confira **primeiro a versão** (Propriedades → Detalhes, `1.4.9.<run>`)
    para ter certeza de que é o build novo, e depois o ícone do `.exe`, o ícone na bandeja, a
-   logo na tela inicial, o título da janela e o link "Website" em Configurações → Sobre.
+   logo na tela inicial, a cor dos botões e do ID, o título da janela e o link "Website" em
+   Configurações → Sobre.
 
 ## Testar a pasta antes de gastar um build
 
@@ -127,7 +166,7 @@ com a arte antiga).
 
 ## O que a marca **não** troca
 
-Nome do app, textos, cores e servidor são iguais para todas as marcas — o sufixo no título é só
+Nome do app, textos e servidor são iguais para todas as marcas — o sufixo no título é só
 o que se vê na barra da janela; o nome interno, o serviço e a pasta de instalação continuam
 `BRRemote`. Duas consequências:
 
@@ -142,8 +181,9 @@ Se um dia for preciso que duas marcas convivam, aí o nome do app também tem qu
 
 | Arquivo | Papel |
 |---|---|
-| `res/brand/apply-brand.sh` | copia a pasta da marca por cima da árvore e valida os caminhos; grava o nome da pasta e o `site.txt` no `brand.dart` |
-| `flutter/lib/brand.dart` | sufixo do título e site do "Website"; o que está commitado é o build padrão |
+| `res/brand/apply-brand.sh` | copia a pasta da marca por cima da árvore e valida os caminhos; grava o nome da pasta, o `site.txt` e os tons do `cor.txt` no `brand.dart` |
+| `res/brand/brand_colors.py` | deriva os cinco tons a partir da cor do `cor.txt` |
+| `flutter/lib/brand.dart` | sufixo do título, site do "Website" e os cinco tons (lidos pelo `MyTheme`); o que está commitado é o build padrão |
 | `res/brand/paths.txt` | lista dos caminhos de marca conhecidos (gera os avisos de "kept") |
 | `.github/actions/apply-brand/action.yml` | baixa a pasta do repositório privado e chama o script |
 | `.github/workflows/flutter-nightly.yml` | o campo "Marca" do "Run workflow" e a release por marca |

@@ -251,23 +251,24 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
 class MyTheme {
   MyTheme._();
 
-  // BR Remote palette. `brand` is the logo green; `accent` is a slightly
-  // deeper tone so it still reaches 4.5:1 as text on white, and `brandDark`
-  // is for green text or icons that need to hold up on a light surface.
-  static const Color brand = Color(0xFF3CA332);
-  static const Color brandDark = Color(0xFF24761F);
+  // CUSTOM BRANDING: the brand palette comes from brand.dart, where a branded
+  // build writes its own colour and the tones derived from it. On the default
+  // build: `brand` is the logo green; `accent` a deeper tone for buttons with
+  // white text, and `brandDark` for brand text or icons on a light surface.
+  static const Color brand = Color(kBrandColor);
+  static const Color brandDark = Color(kBrandDark);
 
-  static const Color grayBg = Color(0xFFEFF1EC);
-  static const Color accent = Color(0xFF2F8F28);
-  static const Color accent50 = Color(0x772F8F28);
-  static const Color accent80 = Color(0xAA2F8F28);
+  static const Color grayBg = Color(kBrandGrayBg);
+  static const Color accent = Color(kBrandAccent);
+  static const Color accent50 = Color((kBrandAccent & 0xFFFFFF) | 0x77000000);
+  static const Color accent80 = Color((kBrandAccent & 0xFFFFFF) | 0xAA000000);
   static const Color canvasColor = Color(0xFF212121);
   static const Color border = Color(0xFFCCCCCC);
-  static const Color idColor = Color(0xFF3CA332);
+  static const Color idColor = Color(kBrandColor);
   static const Color darkGray = Color.fromARGB(255, 148, 148, 148);
-  static const Color cmIdColor = Color(0xFF21790B);
+  static const Color cmIdColor = Color(kBrandCmId);
   static const Color dark = Colors.black87;
-  static const Color button = Color(0xFF2F8F28);
+  static const Color button = Color(kBrandAccent);
   static const Color hoverBorder = Color(0xFF999999);
 
   // ListTile
