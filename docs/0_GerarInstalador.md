@@ -155,6 +155,13 @@ o app é o cliente, que nunca loga) e pode mostrar duas janelas:
   pergunta se quer baixar. **Sim** abre o download no navegador; **Não** fecha. Nada é instalado
   sozinho, e a pergunta volta a cada abertura enquanto a versão continuar abaixo do corte.
 
+- **Licença vencendo** (só para atendente **logado** no app): o servidor diz se a licença dele vai
+  vencer de um jeito que derruba máquinas conectadas, com quantos dias faltam e o texto. Quem dosa
+  é o app: **uma vez por semana** a partir de 30 dias antes do vencimento, e **uma vez por dia**
+  nos últimos 7. Ele guarda o dia do último aviso em `%APPDATA%\BRRemote\config\BRRemote_local.toml`
+  (por usuário do Windows). O aviso é buscado ao abrir o app: quem faz login depois de abrir só o
+  vê na próxima abertura. A regra de quando há o que avisar e o texto são do back.
+
 Os três valores (corte, pasta do download e mensagem) ficam nas **App Settings** do servidor de API
 no Azure, não neste repositório — os nomes exatos estão com o back (apiGDe, `brsuporte`). Vazio
 desliga: sem mensagem não há janela; sem corte ou sem pasta não há oferta de download. Se o

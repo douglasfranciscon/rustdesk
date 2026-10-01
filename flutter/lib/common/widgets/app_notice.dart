@@ -1,12 +1,21 @@
-// CUSTOM BRANDING: the notice shown when the app opens on Windows - a message
-// from the admin, and an offer to download a new version.
+// CUSTOM BRANDING: the notices shown when the app opens on Windows - a message
+// from the admin, an attendant's licence-expiry warning, and an offer to
+// download a new version.
 //
-// Both come from GET <api-server>/api/aviso-app, which needs no login (the
-// person opening the app is usually the client, who never logs in). The back
-// answers {"versao", "url_base", "mensagem"}, each "" when switched off; the
-// values live in the API server's App Settings. Anything else - no API server,
-// a 404, a timeout, a body that is not that JSON - shows nothing: the app must
-// open the same whether or not the back is there.
+// All come from GET <api-server>/api/aviso-app, fetched once per run. It needs
+// no login (the person opening the app is usually the client, who never logs
+// in); an attendant's login is sent when there is one, and only then can the
+// back answer with that attendant's licence warning - a login made after
+// opening shows it on the next run. The back answers {"versao", "url_base",
+// "mensagem", "licenca", "licenca_dias"}, strings "" when switched off; the
+// global values live in the API server's App Settings. Anything else - no API
+// server, a 404, a timeout, a body that is not that JSON - shows nothing: the
+// app must open the same whether or not the back is there.
+//
+// The global message shows on every run. The licence warning does not: the
+// back says whether there is one and how many days are left, and the app paces
+// it - weekly from 30 days before expiry, daily in the last 7 (Douglas's call) -
+// remembering in a local option the day it last showed one.
 //
 // The version is a date, "YYYY.MM.DD" (build_info.dart), and the announced one
 // is a cutoff - the oldest build still acceptable, not the newest published:
@@ -33,10 +42,17 @@ const String _kWindowsExtension = '.exe';
 
 final _brVersionShape = RegExp(r'^\d{4}\.\d{2}\.\d{2}$');
 
+// The licence warning's fields in the back's answer.
+const String _kLicenceField = 'licenca';
+const String _kLicenceDaysField = 'licenca_dias';
+// The local option (BRRemote_local.toml, per Windows user) holding the day,
+// "YYYY-MM-DD", the licence warning was last shown.
+const String _kLicenceShownKey = 'br-licence-notice-last';
+
 bool _checked = false;
 
 /// Fetches the notice once per app run and shows what it asks for: the
-/// message first, then the download offer.
+/// message first, then the licence warning when due, then the download offer.
 Future<void> checkAppNotice() async {
   if (!isWindows || _checked) return;
   _checked = true;
@@ -44,11 +60,18 @@ Future<void> checkAppNotice() async {
   if (notice == null) return;
 
   final message = _field(notice, 'mensagem');
+  final licence = _field(notice, _kLicenceField);
+  final daysLeft = _days(notice, _kLicenceDaysField);
   final version = _field(notice, 'versao');
   final base = _field(notice, 'url_base');
 
   if (message.isNotEmpty) {
-    await _showMessage(message);
+    await _showMessage('Aviso', message);
+  }
+  if (licence.isNotEmpty && daysLeft != null && _licenceDue(daysLeft)) {
+    // Recorded before showing, so closing the app on the dialog still counts.
+    await bind.mainSetLocalOption(key: _kLicenceShownKey, value: _isoDay(_today()));
+    await _showMessage('Licença', licence);
   }
   // An unstamped (local) build has no date to compare: never nag it.
   if (base.isNotEmpty &&
@@ -73,7 +96,14 @@ Future<Map<String, dynamic>?> _fetchNotice() async {
       'versao': kBrVersion,
       'marca': kBrandFolder,
     });
-    final resp = await http.get(url).timeout(const Duration(seconds: 5));
+    // Logged in (an attendant): send the login, and the back may answer with
+    // that attendant's licence-expiry warning in place of the global message.
+    // A missing or stale login only falls back to the global answer, never to
+    // an error. No login, no header at all.
+    final loggedIn = bind.mainGetLocalOption(key: 'access_token').isNotEmpty;
+    final resp = await http
+        .get(url, headers: loggedIn ? getHttpHeaders() : null)
+        .timeout(const Duration(seconds: 5));
     if (resp.statusCode != 200) return null;
     final body = jsonDecode(decode_http_response(resp));
     return body is Map<String, dynamic> ? body : null;
@@ -88,6 +118,36 @@ String _field(Map<String, dynamic> json, String key) {
   return v is String ? v.trim() : '';
 }
 
+/// Days until expiry (0 = expires today), or null for anything that is not a
+/// non-negative number - which shows no licence warning. The back sends -1
+/// when there is nothing to warn about, so that 0 always means "today".
+int? _days(Map<String, dynamic> json, String key) {
+  final v = json[key];
+  if (v is! num) return null;
+  final days = v.toInt();
+  return days >= 0 ? days : null;
+}
+
+/// Whether the licence warning is due: weekly while more than 7 days are left,
+/// daily in the last 7. Dates are calendar days in UTC so a DST change cannot
+/// shorten a day.
+bool _licenceDue(int daysLeft) {
+  final last = DateTime.tryParse(bind.mainGetLocalOption(key: _kLicenceShownKey));
+  if (last == null) return true; // never shown, or an unreadable date
+  final since =
+      _today().difference(DateTime.utc(last.year, last.month, last.day)).inDays;
+  if (since < 0) return true; // a stored date in the future: the clock moved
+  return since >= (daysLeft <= 7 ? 1 : 7);
+}
+
+DateTime _today() {
+  final now = DateTime.now();
+  return DateTime.utc(now.year, now.month, now.day);
+}
+
+String _isoDay(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 /// url_base + "BRRemote-x86_64" + "_<brand folder>" on a branded build + ".exe".
 /// url_base may come with or without its trailing slash.
 Uri windowsInstallerUrl(String base) {
@@ -97,16 +157,16 @@ Uri windowsInstallerUrl(String base) {
   return Uri.parse(folder).resolve(file);
 }
 
-Future<void> _showMessage(String message) async {
+Future<void> _showMessage(String title, String message) async {
   await gFFI.dialogManager.show<bool>((setState, close, context) {
     return CustomAlertDialog(
-      title: const Text('Aviso'),
+      title: Text(title),
       content: SelectableText(message),
       actions: [dialogButton('OK', onPressed: close)],
       onSubmit: close,
       onCancel: close,
     );
-  }, tag: 'app-notice-message');
+  }, tag: 'app-notice-$title');
 }
 
 // `cutoff` is the minimum, not the newest: the folder may hold a later build,
