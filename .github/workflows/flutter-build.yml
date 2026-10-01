@@ -168,6 +168,12 @@ jobs:
           # writes the portable packer's version strings from its Cargo metadata (the
           # ProductVersion key ships commented out).
           sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          # The BR version the new-version notice compares (flutter/lib/build_info.dart):
+          # the build date in Brasilia time (UTC-3, no DST since 2019), as YYYY.MM.DD.
+          BR_VERSION="$(date -u -d '3 hours ago' +%Y.%m.%d)"
+          sed -i "s#^const String kBrVersion = '';#const String kBrVersion = '$BR_VERSION';#" flutter/lib/build_info.dart
+          grep -Fq "const String kBrVersion = '$BR_VERSION';" flutter/lib/build_info.dart || { echo "::error::kBrVersion was not stamped in flutter/lib/build_info.dart"; exit 1; }
+          echo "BR version: $BR_VERSION"
           sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       # CUSTOM BRANDING: swap the icons/logos for the requested brand, if any.
@@ -504,6 +510,12 @@ jobs:
           # writes the portable packer's version strings from its Cargo metadata (the
           # ProductVersion key ships commented out).
           sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          # The BR version the new-version notice compares (flutter/lib/build_info.dart):
+          # the build date in Brasilia time (UTC-3, no DST since 2019), as YYYY.MM.DD.
+          BR_VERSION="$(date -u -d '3 hours ago' +%Y.%m.%d)"
+          sed -i "s#^const String kBrVersion = '';#const String kBrVersion = '$BR_VERSION';#" flutter/lib/build_info.dart
+          grep -Fq "const String kBrVersion = '$BR_VERSION';" flutter/lib/build_info.dart || { echo "::error::kBrVersion was not stamped in flutter/lib/build_info.dart"; exit 1; }
+          echo "BR version: $BR_VERSION"
           sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       # CUSTOM BRANDING: swap the icons/logos for the requested brand, if any.
@@ -1147,6 +1159,12 @@ jobs:
           # writes the portable packer's version strings from its Cargo metadata (the
           # ProductVersion key ships commented out).
           sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          # The BR version the new-version notice compares (flutter/lib/build_info.dart):
+          # the build date in Brasilia time (UTC-3, no DST since 2019), as YYYY.MM.DD.
+          BR_VERSION="$(date -u -d '3 hours ago' +%Y.%m.%d)"
+          sed -i "s#^const String kBrVersion = '';#const String kBrVersion = '$BR_VERSION';#" flutter/lib/build_info.dart
+          grep -Fq "const String kBrVersion = '$BR_VERSION';" flutter/lib/build_info.dart || { echo "::error::kBrVersion was not stamped in flutter/lib/build_info.dart"; exit 1; }
+          echo "BR version: $BR_VERSION"
           sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       # CUSTOM BRANDING: swap the icons/logos for the requested brand, if any.
@@ -1460,6 +1478,12 @@ jobs:
           # writes the portable packer's version strings from its Cargo metadata (the
           # ProductVersion key ships commented out).
           sed -i 's#^version: .*#version: ${{ env.VERSION }}+${{ env.BUILD_NUMBER }}#' flutter/pubspec.yaml
+          # The BR version the new-version notice compares (flutter/lib/build_info.dart):
+          # the build date in Brasilia time (UTC-3, no DST since 2019), as YYYY.MM.DD.
+          BR_VERSION="$(date -u -d '3 hours ago' +%Y.%m.%d)"
+          sed -i "s#^const String kBrVersion = '';#const String kBrVersion = '$BR_VERSION';#" flutter/lib/build_info.dart
+          grep -Fq "const String kBrVersion = '$BR_VERSION';" flutter/lib/build_info.dart || { echo "::error::kBrVersion was not stamped in flutter/lib/build_info.dart"; exit 1; }
+          echo "BR version: $BR_VERSION"
           sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       # CUSTOM BRANDING: swap the icons/logos for the requested brand, if any.

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_hbb/build_info.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
@@ -2393,8 +2394,11 @@ class _AboutState extends State<_About> {
                   errorBuilder: (ctx, error, stackTrace) => loadIcon(64),
                 ),
               ).marginSymmetric(vertical: 4.0),
+              // CUSTOM BRANDING: plus the BR version (the build date) that
+              // the new-version notice compares - the one to check in support.
               SelectionArea(
-                  child: Text('${translate('Version')}: $version')
+                  child: Text('${translate('Version')}: $version'
+                          '${kBrVersion.isEmpty ? '' : ' ($kBrVersion)'}')
                       .marginSymmetric(vertical: 4.0)),
               SelectionArea(
                   child: Text('${translate('Build Date')}: $buildDate')

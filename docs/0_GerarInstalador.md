@@ -144,3 +144,46 @@ Passo a passo, depois de baixar `BRRemote-<versão>-x86_64.exe`/`.msi` da aba Re
    - Troque a URL do `/tr` pelo servidor de timestamp da sua CA, se for diferente.
 4. Confirme a assinatura: botão direito no arquivo → Propriedades → aba "Assinaturas Digitais".
 5. Substitua os arquivos não assinados na Release (ou distribua os assinados separadamente).
+
+## 7. Avisar os clientes de versão nova (Windows)
+
+Ao abrir, o app no Windows consulta o servidor de API (`GET /api/aviso-app`, sem login — quem abre
+o app é o cliente, que nunca loga) e pode mostrar duas janelas:
+
+- **Mensagem:** um texto seu, com botão OK, **toda vez que o app abrir** enquanto houver mensagem.
+- **Versão nova:** se a versão do app for **mais antiga** que a anunciada, pergunta se quer baixar.
+  **Sim** abre o download no navegador; **Não** fecha. Nada é instalado sozinho, e a pergunta
+  volta a cada abertura enquanto a versão continuar mais antiga.
+
+Os três valores (versão, pasta do download e mensagem) ficam nas **App Settings** do servidor de API
+no Azure, não neste repositório — os nomes exatos estão com o back (apiGDe, `brsuporte`). Vazio
+desliga: sem mensagem não há janela; sem versão ou sem pasta não há oferta de download. Se o
+servidor estiver fora do ar, o app abre normalmente, sem aviso nenhum.
+
+### A versão é a data do build
+
+Cada build grava a **data em que foi gerado**, no horário de Brasília, como `AAAA.MM.DD`
+(`2026.10.15`). Ela aparece no Sobre, ao lado da versão do RustDesk — `Versão: 1.4.9 (2026.10.15)` —
+e no log do passo "Patch custom rendezvous server" (`BR version: 2026.10.15`). É a mesma para todas
+as marcas geradas no mesmo dia e não tem nada a ver com o `1.4.9.<run>` das propriedades do `.exe`.
+
+O app avisa quando a data **dele** é **anterior** à anunciada. Por isso, ao publicar uma leva,
+anuncie a data do build **mais antigo** dela: gerou o padrão em 15/10 e a Invicta em 16/10, anuncie
+`2026.10.15` — senão o padrão de 15/10 ficaria pedindo para baixar ele mesmo.
+
+⚠️ A versão anunciada tem que estar **exatamente** em `AAAA.MM.DD`, com zeros (`2026.10.05`, não
+`2026.10.5`). Fora desse formato o app não oferece nada — um erro de digitação não dispara aviso
+em todo mundo, mas também não avisa ninguém. Build local (fora do GitHub) não tem data e nunca avisa.
+
+### Publicar uma leva
+
+1. Gere os builds (padrão e cada marca) e assine os `.exe` (passo 6).
+2. Suba na pasta do download, **sem versão no nome**:
+   - `BRRemote-x86_64.exe` — o padrão
+   - `BRRemote-x86_64_<pasta>.exe` — cada marca (ex.: `BRRemote-x86_64_invicta.exe`)
+3. Nas App Settings, ponha a versão (data do build mais antigo da leva) e a pasta do download
+   (ex.: `https://brprojbackupapp.s3.sa-east-1.amazonaws.com/BRRemote/`).
+
+O app monta o nome do arquivo sozinho: pasta + `BRRemote-x86_64` + `_<pasta da marca>` (só em build
+de marca) + `.exe`. Esse nome mora no código (`flutter/lib/common/widgets/app_notice.dart`); se um
+dia os arquivos mudarem de nome, só um app novo passa a achá-los.
