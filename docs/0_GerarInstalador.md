@@ -78,8 +78,9 @@ Sem esses 4 secrets configurados, o workflow ainda funciona, mas publica o `.apk
 5. Se quiser gerar **só o Windows** (mais rápido, não espera Android/Linux/macOS/iOS/web): marque a caixinha **"Build only Windows..."**
    - Deixe desmarcada se também quiser o `.apk` do Android
 6. **"Marca: pasta de logos a usar"**: deixe **vazio** para o BR Remote de sempre. Preenchendo
-   (ex.: `invicta`), o build sai com a logo daquela marca e publica numa release separada —
-   ver [1_MarcasAlternativas.md](1_MarcasAlternativas.md)
+   (ex.: `invicta`), o build sai com a logo daquela marca, o site dela no "Website" do Sobre e
+   o nome da pasta no título ("BR Remote - Invicta"), e publica numa release separada — ver
+   [1_MarcasAlternativas.md](1_MarcasAlternativas.md)
 7. Clique em **Run workflow**
 
 ## 3. Acompanhar

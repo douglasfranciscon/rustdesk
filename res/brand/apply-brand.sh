@@ -15,6 +15,9 @@
 # it is a typo: the file would be copied somewhere nothing reads, and the build would
 # quietly ship the old artwork. That is an error, not a warning.
 #
+# Besides artwork, the folder's name goes into the title bar and an optional
+# site.txt at its root sets the "Website" links; both land in flutter/lib/brand.dart.
+#
 # See docs/1_MarcasAlternativas.md.
 
 set -euo pipefail
@@ -44,6 +47,9 @@ fi
 BRAND_DIR="$(cd "$BRAND_DIR" && pwd)"
 KNOWN_PATHS="$REPO_ROOT/res/brand/paths.txt"
 
+BRAND_DART="$REPO_ROOT/flutter/lib/brand.dart"
+SITE_FILE="site.txt"
+
 # Documentation that travels with a brand folder but is not part of the product.
 is_doc() {
     case "$1" in
@@ -51,6 +57,41 @@ is_doc() {
         *) return 1 ;;
     esac
 }
+
+# --- What the brand changes besides artwork (flutter/lib/brand.dart) ----------
+#
+# The folder name labels the title bar ("BR Remote - Invicta"), and site.txt, when
+# the folder has one, is where the "Website" links go. Both are validated before
+# anything is copied: a bad value must stop the build, not ship a broken link.
+
+brand_name="$(basename "$BRAND_DIR")"
+case "$brand_name" in
+    # The committed artwork, i.e. the default build: no suffix in the title.
+    brremote) brand_name="" ;;
+esac
+name_re='^[A-Za-z0-9 _.-]*$'
+if ! [[ "$brand_name" =~ $name_re ]]; then
+    echo "apply-brand: brand folder name has characters the app cannot show: $brand_name" >&2
+    exit 1
+fi
+
+brand_site=""
+if [ -f "$BRAND_DIR/$SITE_FILE" ]; then
+    # Drop a BOM and CRs (Notepad, CRLF checkouts), blank lines and surrounding
+    # spaces; then a scheme and trailing slash, since the app adds https:// itself.
+    brand_site="$(sed '1s/^\xEF\xBB\xBF//' "$BRAND_DIR/$SITE_FILE" | tr -d '\r' \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$' || true)"
+    brand_site="${brand_site#http://}"
+    brand_site="${brand_site#https://}"
+    brand_site="${brand_site%/}"
+    # [[ =~ ]] and not grep: grep would pass a file with a second, bad line.
+    site_re='^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/[A-Za-z0-9._~/-]*)?$'
+    if ! [[ "$brand_site" =~ $site_re ]]; then
+        echo "apply-brand: $SITE_FILE must hold one site, like www.example.com.br; found:" >&2
+        sed 's/^/  | /' "$BRAND_DIR/$SITE_FILE" >&2
+        exit 1
+    fi
+fi
 
 # --- Collect and validate everything before copying a single byte ------------
 
@@ -60,6 +101,7 @@ errors=()
 while IFS= read -r abs; do
     rel="${abs#$BRAND_DIR/}"
     is_doc "$rel" && continue
+    [ "$rel" = "$SITE_FILE" ] && continue   # data, read above - not artwork
     if [ -f "$REPO_ROOT/$rel" ]; then
         assets+=("$rel")
     else
@@ -88,6 +130,27 @@ for rel in "${assets[@]}"; do
     echo "  replaced  $rel"
 done
 echo "apply-brand: ${#assets[@]} file(s) replaced from $BRAND_DIR"
+
+# Patch brand.dart line by line, so its comments and the default site stay in one
+# place. The patterns stop at the closing quote, leaving a CR from a CRLF checkout
+# alone, and each result is checked: a pattern that matched nothing fails here.
+set_brand_const() {
+    local name="$1" value="$2"
+    sed -i "s|^const String $name = '[^']*';|const String $name = '$value';|" "$BRAND_DART"
+    if ! grep -Fq "const String $name = '$value';" "$BRAND_DART"; then
+        echo "apply-brand: could not set $name in $BRAND_DART" >&2
+        exit 1
+    fi
+}
+
+set_brand_const kBrandFolder "$brand_name"
+echo "  title     ${brand_name:-(no suffix)}"
+if [ -n "$brand_site" ]; then
+    set_brand_const kBrandWebsite "$brand_site"
+    echo "  website   $brand_site"
+else
+    echo "  website   (no $SITE_FILE in the brand folder, keeping the default)"
+fi
 
 # --- Remind about the branding paths this brand did not cover ----------------
 

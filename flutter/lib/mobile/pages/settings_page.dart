@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:settings_ui/settings_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../brand.dart';
 import '../../common.dart';
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/login.dart';
@@ -35,7 +36,8 @@ class SettingsPage extends StatefulWidget implements PageShape {
   State<SettingsPage> createState() => _SettingsState();
 }
 
-const url = 'https://www.brproj.com.br/';
+// CUSTOM BRANDING: the brand's site (see brand.dart).
+const url = kBrandWebsiteUrl;
 
 enum KeepScreenOn {
   never,
@@ -959,7 +961,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 title: Text(translate("Version: ") + version),
                 value: Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('www.brproj.com.br',
+                  child: Text(kBrandWebsite,
                       style: TextStyle(
                         decoration: TextDecoration.underline,
                       )),
@@ -1092,12 +1094,12 @@ void showAbout(OverlayDialogManager dialogManager) {
         Text('Version: $version'),
         InkWell(
             onTap: () async {
-              const url = 'https://www.brproj.com.br/';
+              const url = kBrandWebsiteUrl;
               await launchUrl(Uri.parse(url));
             },
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('www.brproj.com.br',
+              child: Text(kBrandWebsite,
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                   )),

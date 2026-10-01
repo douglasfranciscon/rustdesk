@@ -1,6 +1,8 @@
 * text=auto
 
-# CUSTOM BRANDING: this one runs under bash on the Windows runners too, where a
-# CRLF checkout would break it on the very first line.
+# CUSTOM BRANDING: bash runs, reads or sed-patches these on the Windows runners
+# too, where a CRLF checkout breaks a script on its first line and leaves an
+# invisible \r at the end of every line a pattern has to match.
 res/brand/apply-brand.sh text eol=lf
 res/brand/paths.txt text eol=lf
+flutter/lib/brand.dart text eol=lf

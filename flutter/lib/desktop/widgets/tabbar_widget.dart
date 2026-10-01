@@ -640,9 +640,9 @@ class _DesktopTabState extends State<DesktopTab>
                         ),
                         Offstage(
                             offstage: !showTitle,
-                            child: const Text(
-                              kAppDisplayName,
-                              style: TextStyle(
+                            child: Text(
+                              appTitleWithBrand,
+                              style: const TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w600),
                             ).marginOnly(left: 6))
                       ]).marginOnly(

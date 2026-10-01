@@ -2380,7 +2380,19 @@ class _AboutState extends State<_About> {
               const SizedBox(
                 height: 8.0,
               ),
-              loadIcon(64).marginSymmetric(vertical: 4.0),
+              // CUSTOM BRANDING: the wide banner (logo + domain) instead of the
+              // square icon, whose wordmark is unreadable at this size. Its white
+              // ground doubles as the light plate the logo needs on dark theme.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  'assets/logo.png',
+                  width: 360,
+                  height: 72,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, error, stackTrace) => loadIcon(64),
+                ),
+              ).marginSymmetric(vertical: 4.0),
               SelectionArea(
                   child: Text('${translate('Version')}: $version')
                       .marginSymmetric(vertical: 4.0)),
@@ -2393,7 +2405,7 @@ class _AboutState extends State<_About> {
                         .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://www.brproj.com.br');
+                    launchUrlString(kBrandWebsiteUrl);
                   },
                   child: Text(
                     translate('Website'),
@@ -2407,6 +2419,8 @@ class _AboutState extends State<_About> {
                     child: Row(
                   children: [
                     Expanded(
+                      // CUSTOM BRANDING: upstream's slogan line
+                      // (translate('Slogan_tip')) is left out on purpose.
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2414,12 +2428,6 @@ class _AboutState extends State<_About> {
                             'Feito pela BR PROJ\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
-                          Text(
-                            translate('Slogan_tip'),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white),
-                          )
                         ],
                       ),
                     ),

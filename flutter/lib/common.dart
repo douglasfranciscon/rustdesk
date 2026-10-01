@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_hbb/brand.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
@@ -3080,6 +3081,18 @@ String getWindowName({WindowType? overrideType}) {
 String getWindowNameWithId(String id, {WindowType? overrideType}) {
   return "${DesktopTab.tablabelGetter(id).value} - ${getWindowName(overrideType: overrideType)}";
 }
+
+/// CUSTOM BRANDING: the name in the main window's title bar - "BR Remote", or
+/// "BR Remote - Invicta" on a build made with the brand folder "invicta".
+/// Display only: APP_NAME, the service and the install folder never change.
+String get appTitleWithBrand {
+  if (kBrandFolder.isEmpty) return kAppDisplayName;
+  return '$kAppDisplayName - '
+      '${kBrandFolder[0].toUpperCase()}${kBrandFolder.substring(1)}';
+}
+
+/// CUSTOM BRANDING: where the "Website" links go (see brand.dart).
+const String kBrandWebsiteUrl = 'https://$kBrandWebsite';
 
 Future<void> updateSystemWindowTheme() async {
   // Set system window theme for macOS.

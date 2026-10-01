@@ -4,8 +4,11 @@ O mesmo aplicativo pode sair com outro conjunto de logos e ícones — para um c
 suporte remoto com a cara dele. A escolha é feita **na hora de rodar o build**, num campo a mais
 do "Run workflow": nada de commit, nada de trocar arquivo no repositório.
 
-> **Só a arte muda.** Nome do programa ("BR Remote"), cores do app, servidor e chave continuam os
-> mesmos em todas as marcas. Ver "O que a marca **não** troca", no fim.
+> **Muda a arte, o site e um sufixo no título.** Além das logos, o build mostra o nome da pasta
+> no título da janela ("BR Remote - Invicta") e aponta o "Website" para o site da marca (ver
+> "O site da marca"). Nome do programa ("BR Remote"), serviço, pasta de instalação, cores do app,
+> servidor e chave continuam os mesmos em todas as marcas. Ver "O que a marca **não** troca", no
+> fim.
 
 ## Como está organizado
 
@@ -39,7 +42,31 @@ quem for desenhar), e `res/brand/paths.txt` lista todos os caminhos de marca con
 1. No `br-suporte-secrets`, copie `marcas/brremote` para `marcas/<codinome>`.
 2. Substitua os arquivos pela arte do cliente, **mantendo caminho e tamanho** (a tabela está no
    `LEIAME.md` que veio junto). Pode trocar só alguns.
-3. Commit e push no `br-suporte-secrets`.
+3. Ponha na raiz da pasta um `site.txt` com o site do cliente (ver abaixo).
+4. Commit e push no `br-suporte-secrets`.
+
+⚠️ O **nome da pasta aparece no título da janela**, com a primeira letra maiúscula: a pasta
+`invicta` vira "BR Remote - Invicta". A pasta `brremote` é a exceção — é a marca padrão, e o
+título fica só "BR Remote".
+
+## O site da marca
+
+Um arquivo **`site.txt`** na raiz da pasta da marca (`marcas/invicta/site.txt`, ao lado do
+`LEIAME.md`) diz para onde vai o link "Website" da tela Sobre — no Windows e no Android. Uma linha
+só, com o domínio:
+
+```
+www.invictatecnologia.com.br
+```
+
+`https://` e barra no fim são aceitos e descartados; BOM e quebra de linha do Windows também.
+**Sem** `site.txt`, o link continua em `www.brproj.com.br`. Com um `site.txt` que não pareça um
+site (vazio, duas linhas, aspas, espaço), o build **falha** no passo "Apply brand" mostrando o
+conteúdo do arquivo — melhor do que sair um instalador com link quebrado.
+
+A faixa larga da tela Sobre (`flutter/assets/logo.png`) traz o domínio desenhado na imagem, e o
+`gerar_marca.py` o tira do `Criar/site.txt`. Os dois devem dizer o mesmo site: ao gerar uma marca,
+copie o `Criar/site.txt` para dentro da pasta dela.
 
 ⚠️ **Use codinome, não o nome do cliente.** O valor digitado no "Run workflow" aparece na página
 da execução, que é pública neste fork.
@@ -79,11 +106,12 @@ assets" falhando com 404/403 no clone.
 ## Conferir o resultado
 
 1. Na execução, abra o passo **"Apply brand"**: ele lista cada arquivo substituído
-   (`replaced  res/icon.ico`) e, no fim, os caminhos de marca que **não** foram trocados
-   (`kept  ...`) — é o lembrete do que ainda falta desenhar.
+   (`replaced  res/icon.ico`), o sufixo do título e o site gravados (`title  invicta`,
+   `website  www.invictatecnologia.com.br`) e, no fim, os caminhos de marca que **não** foram
+   trocados (`kept  ...`) — é o lembrete do que ainda falta desenhar.
 2. No instalador baixado, confira **primeiro a versão** (Propriedades → Detalhes, `1.4.9.<run>`)
-   para ter certeza de que é o build novo, e depois o ícone do `.exe`, o ícone na bandeja e a
-   logo na tela inicial.
+   para ter certeza de que é o build novo, e depois o ícone do `.exe`, o ícone na bandeja, a
+   logo na tela inicial, o título da janela e o link "Website" em Configurações → Sobre.
 
 ## Testar a pasta antes de gastar um build
 
@@ -99,7 +127,9 @@ com a arte antiga).
 
 ## O que a marca **não** troca
 
-Nome do app, textos, cores e servidor são iguais para todas as marcas. Duas consequências:
+Nome do app, textos, cores e servidor são iguais para todas as marcas — o sufixo no título é só
+o que se vê na barra da janela; o nome interno, o serviço e a pasta de instalação continuam
+`BRRemote`. Duas consequências:
 
 - Os instaladores têm o mesmo nome de arquivo e o mesmo código de produto: instalar a marca B por
   cima da A é **atualização no lugar**, não duas instalações convivendo na mesma máquina.
@@ -112,7 +142,8 @@ Se um dia for preciso que duas marcas convivam, aí o nome do app também tem qu
 
 | Arquivo | Papel |
 |---|---|
-| `res/brand/apply-brand.sh` | copia a pasta da marca por cima da árvore e valida os caminhos |
+| `res/brand/apply-brand.sh` | copia a pasta da marca por cima da árvore e valida os caminhos; grava o nome da pasta e o `site.txt` no `brand.dart` |
+| `flutter/lib/brand.dart` | sufixo do título e site do "Website"; o que está commitado é o build padrão |
 | `res/brand/paths.txt` | lista dos caminhos de marca conhecidos (gera os avisos de "kept") |
 | `.github/actions/apply-brand/action.yml` | baixa a pasta do repositório privado e chama o script |
 | `.github/workflows/flutter-nightly.yml` | o campo "Marca" do "Run workflow" e a release por marca |
