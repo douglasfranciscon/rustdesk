@@ -607,7 +607,7 @@ abstract class BasePeerCard extends StatelessWidget {
   MenuEntryBase<String> _terminalAction(BuildContext context) {
     return _connectCommonAction(
       context,
-      '${translate('Terminal')} (beta)',
+      '${translate('Terminal')} CMD',
       isTerminal: true,
     );
   }
@@ -616,7 +616,7 @@ abstract class BasePeerCard extends StatelessWidget {
   MenuEntryBase<String> _terminalRunAsAdminAction(BuildContext context) {
     return _connectCommonAction(
       context,
-      '${translate('Terminal (Run as administrator)')} (beta)',
+      translate('Terminal (Run as administrator)'),
       isTerminalRunAsAdmin: true,
     );
   }
@@ -1002,10 +1002,14 @@ class RecentPeerCard extends BasePeerCard {
       menuItems.add(_unrememberPasswordAction(peer.id));
     }
 
-    if (!favs.contains(peer.id)) {
-      menuItems.add(_addFavAction(peer.id));
-    } else {
-      menuItems.add(_rmFavAction(peer.id, () async {}));
+    // CUSTOM BRANDING: no Favorites tab (see PeerTabModel.isEnabled), so
+    // nothing to add to it.
+    if (gFFI.peerTabModel.isEnabled[PeerTabIndex.fav.index]) {
+      if (!favs.contains(peer.id)) {
+        menuItems.add(_addFavAction(peer.id));
+      } else {
+        menuItems.add(_rmFavAction(peer.id, () async {}));
+      }
     }
 
     if (gFFI.userModel.userName.isNotEmpty) {

@@ -432,8 +432,9 @@ class _PeerTabPageState extends State<PeerTabPage>
   Widget addSelectionToFav() {
     final model = Provider.of<PeerTabModel>(context);
     return Offstage(
-      offstage:
-          model.currentTab != PeerTabIndex.recent.index, // show based on recent
+      // show based on recent; CUSTOM BRANDING: and never without a Favorites tab
+      offstage: model.currentTab != PeerTabIndex.recent.index ||
+          !model.isEnabled[PeerTabIndex.fav.index],
       child: _hoverAction(
         context: context,
         toolTip: translate('Add to Favorites'),

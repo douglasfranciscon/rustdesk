@@ -501,7 +501,7 @@ class _ConnectionPageState extends State<ConnectionPage>
                 const SizedBox(width: 8),
                 _connectMode(
                   icon: Icons.terminal_outlined,
-                  label: '${translate('Terminal')} (beta)',
+                  label: '${translate('Terminal')} CMD',
                   onTap: () => onConnect(isTerminal: true),
                 ),
               ]),

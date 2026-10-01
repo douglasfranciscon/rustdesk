@@ -477,7 +477,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
     );
     v.add(
       TTextMenu(
-          child: Text('${translate('Terminal')} (beta)'),
+          child: Text('${translate('Terminal')} CMD'),
           onPressed: () => connectWithToken(isTerminal: true)),
     );
     v.add(

@@ -37,12 +37,15 @@ class PeerTabModel with ChangeNotifier {
     IconFont.addressBook,
     IconFont.deviceGroupFill,
   ];
+  // CUSTOM BRANDING: Favorites, Discovered and Accessible devices are not used
+  // here, so they are off for good - which also drops them from the right-click
+  // menu that lets a user show a hidden tab again.
   List<bool> isEnabled = List.from([
     true,
-    true,
-    !isWeb && bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
+    false, // fav
+    false, // lan
     !(bind.isDisableAb() || bind.isDisableAccount()),
-    !(bind.isDisableGroupPanel() || bind.isDisableAccount()),
+    false, // group
   ]);
   final List<bool> _isVisible = List.filled(maxTabCount, true, growable: false);
   List<bool> get isVisibleEnabled => () {
