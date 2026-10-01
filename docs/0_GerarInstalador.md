@@ -71,6 +71,10 @@ Sem esses 4 secrets configurados, o workflow ainda funciona, mas publica o `.apk
 
 ## 2. Rodar o workflow
 
+Nenhum build roda sozinho: nem à noite, nem a cada commit (o "CI" e o "Full Flutter CI" do
+upstream também ficaram só no botão). O workflow fica **habilitado** e só espera o clique — se
+um dia aparecer como desabilitado, foi desligado à mão no GitHub, não pelo repositório.
+
 1. Vá em **Actions** no fork (`github.com/douglasfranciscon/rustdesk/actions`)
 2. Na lista à esquerda, clique em **"Flutter Nightly Build"**
 3. Clique no botão **"Run workflow"** (canto direito)
@@ -98,6 +102,7 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
   - `BRRemote-<versão>-x86_64.exe` → executável autoextraível, arquivo único
   - `BRRemote-<versão>-x86_64.msi` → instalador Windows
   - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
+  - (se "Build only Windows" ficou desmarcado) `BRRemote-<versão>-x86-sciter.exe` → o Windows **32 bits**, para máquina que não roda o de 64. É a interface **antiga (Sciter)**, não a Flutter: leva servidor, chave, nome, senha fixa e ícones, mas nenhuma das telas personalizadas (abas, Sobre, título, logos internas)
 
 Se o build foi gerado **com marca**, os arquivos não vão para a release `nightly`, e sim para
 uma release própria da marca — `nightly-invicta`, por exemplo. Os nomes dos arquivos são os

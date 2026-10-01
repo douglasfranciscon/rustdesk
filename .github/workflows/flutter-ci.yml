@@ -1,21 +1,10 @@
 name: Full Flutter CI
 
 on:
+  # CUSTOM BRANDING: manual only. Upstream runs this on every push and pull
+  # request; here that only burned Actions minutes on runs nobody looked at.
+  # Installers come from "Flutter Nightly Build", also run by hand.
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-    - "docs/**"
-    - "README.md"
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - ".github/**"
-      - "docs/**"
-      - "README.md"
-      - "res/**"
-      - "appimage/**"
-      - "flatpak/**"
 
 jobs:
   run-ci:
