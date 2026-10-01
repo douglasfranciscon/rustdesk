@@ -36,6 +36,11 @@ runs:
           # Failing here beats building the wrong-looking installer silently.
           echo "::error::brand '$BRAND' was requested but the assets token is empty (secret BRAND_ASSETS_TOKEN)."
           exit 1
+        elif [[ "$BRAND" == */* || "$BRAND" == *'\'* || "$BRAND" == "." || "$BRAND" == ".." ]]; then
+          # The name becomes a path under marcas/ and a sparse-checkout pattern:
+          # it must name one folder there, not reach out of it.
+          echo "::error::brand '$BRAND' is not a folder name under marcas/."
+          exit 1
         else
           echo "apply=true" >> "$GITHUB_OUTPUT"
         fi
@@ -47,6 +52,14 @@ runs:
         repository: ${{ inputs.assets-repo }}
         token: ${{ inputs.token }}
         path: .brand-assets
+        # Only the requested brand's folder. The repository root also holds the
+        # Android keystore and its passwords, and nothing else in it is read
+        # here: sparse-checkout makes checkout fetch with blob:none, so those
+        # files' contents never reach the runner at all. Not cone mode, which
+        # always brings the root files along - exactly the ones to keep out.
+        sparse-checkout: |
+          /marcas/${{ inputs.brand }}/
+        sparse-checkout-cone-mode: false
 
     - name: Apply brand
       if: steps.decide.outputs.apply == 'true'

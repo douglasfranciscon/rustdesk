@@ -185,6 +185,6 @@ Se um dia for preciso que duas marcas convivam, aí o nome do app também tem qu
 | `res/brand/brand_colors.py` | deriva os cinco tons a partir da cor do `cor.txt` |
 | `flutter/lib/brand.dart` | sufixo do título, site do "Website" e os cinco tons (lidos pelo `MyTheme`); o que está commitado é o build padrão |
 | `res/brand/paths.txt` | lista dos caminhos de marca conhecidos (gera os avisos de "kept") |
-| `.github/actions/apply-brand/action.yml` | baixa a pasta do repositório privado e chama o script |
+| `.github/actions/apply-brand/action.yml` | baixa do repositório privado **só a pasta da marca** (o keystore e as senhas, na raiz dele, nem chegam à máquina do build) e chama o script |
 | `.github/workflows/flutter-nightly.yml` | o campo "Marca" do "Run workflow" e a release por marca |
 | `.github/workflows/flutter-build.yml` | passa a marca aos 4 jobs que geram instalador (Windows flutter, Windows sciter, Android e Android universal) |
