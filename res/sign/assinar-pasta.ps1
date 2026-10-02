@@ -15,10 +15,36 @@ Uso (no computador com o token do certificado):
 param(
     [Parameter(Mandatory = $true)] [string] $Pasta,
     [string] $Zip = "",
-    [string] $Timestamp = "http://timestamp.digicert.com"
+    [string] $Timestamp = "http://timestamp.digicert.com",
+    # Thumbprint do certificado. Vazio = o único certificado de assinatura de
+    # código emitido por uma autoridade (não autoassinado) e ainda válido.
+    [string] $Certificado = ""
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Nunca "/a": ele escolhe sozinho o certificado que vence mais tarde, e já pegou um
+# autoassinado desta máquina no lugar do EV do token - assinatura sem PIN que o
+# Windows não aceita. O certificado vai sempre explícito, pelo thumbprint.
+if (-not $Certificado) {
+    $agora = Get-Date
+    $candidatos = @(Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+        Where-Object { $_.Subject -ne $_.Issuer -and $_.NotBefore -le $agora -and $_.NotAfter -gt $agora })
+    if ($candidatos.Count -ne 1) {
+        Write-Host "Certificados de assinatura de código encontrados:"
+        Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+            ForEach-Object { Write-Host ("  {0}  {1}  (até {2})" -f $_.Thumbprint, $_.Subject, $_.NotAfter.ToString('dd/MM/yyyy')) }
+        throw "Encontrei $($candidatos.Count) certificado(s) válido(s) emitidos por autoridade. Conecte o token, ou escolha um com -Certificado <thumbprint>."
+    }
+    $Certificado = $candidatos[0].Thumbprint
+}
+$cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $Certificado } | Select-Object -First 1
+if (-not $cert) { throw "Certificado $Certificado não está em Cert:\CurrentUser\My (o token está conectado?)." }
+Write-Host ("certificado: {0}" -f $cert.Subject)
+Write-Host ("             válido até {0}, thumbprint {1}" -f $cert.NotAfter.ToString('dd/MM/yyyy'), $cert.Thumbprint)
+if ($cert.NotAfter -lt (Get-Date).AddDays(30)) {
+    Write-Host ("ATENÇÃO: o certificado vence em {0} dia(s) - providencie a renovação." -f [int]($cert.NotAfter - (Get-Date)).TotalDays)
+}
 
 # signtool: no PATH, ou no Windows SDK.
 $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
@@ -54,7 +80,7 @@ foreach ($f in $arquivos) {
 if ($assinar.Count -gt 0) {
     Write-Host ""
     Write-Host "assinando $($assinar.Count) de $($arquivos.Count) arquivo(s)..."
-    & $signtool sign /a /fd SHA256 /tr $Timestamp /td SHA256 @assinar
+    & $signtool sign /sha1 $Certificado /fd SHA256 /tr $Timestamp /td SHA256 @assinar
     if ($LASTEXITCODE -ne 0) { throw "signtool falhou (código $LASTEXITCODE)." }
 }
 

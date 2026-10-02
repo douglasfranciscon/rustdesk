@@ -42,6 +42,12 @@ O workflow "Flutter Nightly Build" **não muda**; a etapa 2 é um workflow à pa
    assinadas pelo fabricante), numa chamada só ao `signtool` — o token pede o PIN uma vez,
    dependendo da configuração dele. No fim confere tudo e grava `C:\temp\assinado-x86_64.zip`.
 
+   Ele mostra no começo qual certificado vai usar: o único de assinatura de código emitido por uma
+   autoridade e ainda válido (hoje, o EV da BR PROJ no token), nunca um autoassinado. **Se não pedir
+   o PIN, está errado** — o token não está conectado ou outro certificado entrou na jogada. Para
+   escolher um específico (por exemplo, quando houver o antigo e o renovado), passe
+   `-Certificado <thumbprint>`; sem achar exatamente um candidato, ele para e lista os que viu.
+
 4. **Anexe o zip à release do build** — no GitHub, aba **Releases** → `nightly` (ou
    `nightly-<marca>`, ex. `nightly-invicta`) → ícone de lápis (editar) → arraste o
    `assinado-x86_64.zip` em "Attach binaries" → **Update release**.

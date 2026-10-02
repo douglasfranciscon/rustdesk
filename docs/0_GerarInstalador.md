@@ -143,10 +143,13 @@ Passo a passo, depois de baixar `BRRemote-<versão>-x86_64.exe`/`.msi` da aba Re
 2. Abra um terminal com o `signtool.exe` no PATH (vem com o Windows SDK).
 3. Rode, pra cada arquivo:
    ```
-   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.exe"
-   signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.msi"
+   signtool sign /n "BR PROJ SOLUCOES LTDA" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.exe"
+   signtool sign /n "BR PROJ SOLUCOES LTDA" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "BRRemote-<versão>-x86_64.msi"
    ```
-   - `/a` escolhe automaticamente o certificado de assinatura de código disponível (vai pedir a senha/PIN do token).
+   - `/n` escolhe o certificado pelo nome (vai pedir a senha/PIN do token).
+   - ⚠️ **Não use `/a`.** Ele escolhe sozinho o certificado que vence mais tarde, e nesta máquina
+     isso é um certificado **autoassinado** (`CN=001dfdc5-…`, sem valor para o Windows), não o EV do
+     token: assina sem pedir PIN e o arquivo sai com assinatura inválida. Se não pediu PIN, confira.
    - Troque a URL do `/tr` pelo servidor de timestamp da sua CA, se for diferente.
 4. Confirme a assinatura: botão direito no arquivo → Propriedades → aba "Assinaturas Digitais".
 5. Substitua os arquivos não assinados na Release (ou distribua os assinados separadamente).
