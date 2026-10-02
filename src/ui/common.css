@@ -1,6 +1,8 @@
 html {
-    var(accent): #0071ff;
-    var(button): #2C8CFF;
+    /* CUSTOM BRANDING: BR PROJ green, the same tones as the Flutter UI's MyTheme
+       (accent = brandDark, button = accent/button), in every brand. */
+    var(accent): #24761F;
+    var(button): #2F8F28;
     var(gray-bg): #eee;
     var(bg): white;
     var(border): #ccc;
@@ -9,7 +11,7 @@ html {
     var(placeholder): #aaa;
     var(lighter-text): #888;
     var(light-text): #666;
-    var(menu-hover): #D7E4F2;
+    var(menu-hover): #DCEBD9;
     var(dark-red): #A72145;
     var(dark-yellow): #FBC732;
     var(dark-blue): #2E2459;

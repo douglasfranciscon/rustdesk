@@ -596,16 +596,16 @@ class MyIdMenu: Reactor.Component {
         }
     }
 
+    // CUSTOM BRANDING: Website goes to BR PROJ; upstream's privacy-statement link
+    // and slogan line are left out, as on the Flutter About page.
     function showAbout() {
         var name = handler.get_app_name();
         msgbox("custom-nocancel-nook-hasclose", translate("About") + " " + name, "<div style='line-height: 2em'> \
             <div>Version: " + handler.get_version() + " \
             <div>Fingerprint: " + handler.get_fingerprint() + " \
-            <div .link .custom-event url='https://rustdesk.com/privacy.html'>" + translate("Privacy Statement") + "</div> \
-            <div .link .custom-event url='https://rustdesk.com'>" + translate("Website") + "</div> \
-	    <div style='background: #2c8cff; color: white; padding: 1em; margin-top: 1em;'>Copyright &copy; 2026 Purslane Tech Pte. Ltd.\
+            <div .link .custom-event url='https://www.brproj.com.br'>" + translate("Website") + "</div> \
+	    <div style='background: #2F8F28; color: white; padding: 1em; margin-top: 1em;'>Copyright &copy; 2026 Purslane Tech Pte. Ltd.\
             <br />" + handler.get_license() + " \
-            <p style='font-weight: bold'>" + translate("Slogan_tip") + "</p>\
             </div>\
         </div>", "", function(el) {
             if (el && el.attributes) {
