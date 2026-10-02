@@ -206,6 +206,11 @@ UINT __stdcall RemoveRuntimeGeneratedFiles(
     }
 
     WcaLog(LOGMSG_STANDARD, "Removing runtime-generated files from install folder: %ls", installFolder);
+    // CUSTOM BRANDING: the privacy-mode helper is RuntimeBroker_brremote.exe (see
+    // src/privacy_mode/win_topmost_window.rs). Versions before the rename left
+    // RuntimeBroker_rustdesk.exe here, so that one goes too - from our own install
+    // folder only; it is never killed by name, since the official RustDesk uses it.
+    DeleteRuntimeGeneratedFile(installFolder, L"RuntimeBroker_brremote.exe");
     DeleteRuntimeGeneratedFile(installFolder, L"RuntimeBroker_rustdesk.exe");
 
 LExit:
