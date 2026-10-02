@@ -102,7 +102,9 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
   - `BRRemote-<versão>-x86_64.exe` → executável autoextraível, arquivo único
   - `BRRemote-<versão>-x86_64.msi` → instalador Windows
   - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
-  - (se "Build only Windows" ficou desmarcado) `BRRemote-<versão>-x86-sciter.exe` → o Windows **32 bits**, para máquina que não roda o de 64. É a interface **antiga (Sciter)**, não a Flutter: leva servidor, chave, nome, senha fixa e ícones, mas nenhuma das telas personalizadas (abas, Sobre, título, logos internas)
+  - (se "Build only Windows" ficou desmarcado) `BRRemote-<versão>-x86-sciter.exe` → o Windows **32 bits**, para máquina que não roda o de 64. É a interface **antiga (Sciter)**, não a Flutter: leva servidor, chave, nome, senha fixa e ícones, mas nenhuma das telas personalizadas (abas, Sobre, título, logos internas, avisos). ⚠️ Ele **só recebe** conexões: mostra ID e senha e não conecta em ninguém (nem pelo botão, nem por `--connect`, nem por arquivo `.brremote`), porque não tem login e a licença é cobrada no login. Serve para o cliente ser atendido, nunca para prestar suporte.
+
+  Nos outros builds, **conectar em alguém exige login** no app: sem login a tela não mostra o Conectar, e um link `brremote://` ou `BRRemote.exe --connect` também é recusado com "Faça login no BR Remote para conectar.". Receber conexões nunca exige login.
 
 Se o build foi gerado **com marca**, os arquivos não vão para a release `nightly`, e sim para
 uma release própria da marca — `nightly-invicta`, por exemplo. Os nomes dos arquivos são os

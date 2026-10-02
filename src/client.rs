@@ -255,6 +255,16 @@ impl Client {
         if config::is_incoming_only() {
             bail!("Incoming only mode");
         }
+        // CUSTOM BRANDING: giving support needs an account - the licence is charged
+        // at login. The home page already hides the connect pane until then, but a
+        // brremote:// link, --connect or a .brremote file reach here without the
+        // page, so the check lives at the one place every outgoing session (remote
+        // desktop, file transfer, camera, terminal, port forward, RDP) passes. It
+        // only sees that a login is stored, not that it is still valid: a revoked
+        // one is dropped when the app restarts (refreshCurrentUser on a 401).
+        if !config::is_disable_account() && LocalConfig::get_option("access_token").is_empty() {
+            bail!("Faça login no BR Remote para conectar.");
+        }
         // to-do: remember the port for each peer, so that we can retry easier
         if hbb_common::is_ip_str(peer) {
             return Ok((

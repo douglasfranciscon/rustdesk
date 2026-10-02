@@ -516,6 +516,15 @@ jobs:
           sed -i "s#^const String kBrVersion = '';#const String kBrVersion = '$BR_VERSION';#" flutter/lib/build_info.dart
           grep -Fq "const String kBrVersion = '$BR_VERSION';" flutter/lib/build_info.dart || { echo "::error::kBrVersion was not stamped in flutter/lib/build_info.dart"; exit 1; }
           echo "BR version: $BR_VERSION"
+          # The 32-bit build only RECEIVES connections. It has no account login, and the
+          # licence is charged at login, so it must not be a way to give support without
+          # one. conn-type=incoming is upstream's incoming-only mode: the Sciter UI drops
+          # the whole connect pane, and Client::_start refuses every outgoing session
+          # (button, --connect, .brremote file alike). Normally only a custom.txt signed
+          # with RustDesk's key fills HARD_SETTINGS, so seed it here. Same no-push-access
+          # submodule as above; this job only.
+          sed -i 's#pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();#pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("conn-type".to_owned(), "incoming".to_owned())]));#' libs/hbb_common/src/config.rs
+          grep -Fq 'RwLock::new(HashMap::from([("conn-type".to_owned(), "incoming".to_owned())]))' libs/hbb_common/src/config.rs || { echo "::error::incoming-only was not set in libs/hbb_common/src/config.rs"; exit 1; }
           sed -i 's|^#ProductVersion = ""|ProductVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"\nFileVersion = "${{ env.VERSION }}.${{ env.BUILD_NUMBER }}"|' libs/portable/Cargo.toml
 
       # CUSTOM BRANDING: swap the icons/logos for the requested brand, if any.

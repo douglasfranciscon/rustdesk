@@ -1313,6 +1313,9 @@ event keydown (evt) {
     if (!evt.shortcutKey) {
         if (isEnterKey(evt)) {
             var el = $(button#connect);
+            // CUSTOM BRANDING: the 32-bit build is incoming-only, so there is no
+            // Connect button for Enter to press.
+            if (!el) return;
             view.focus = el;
             el.sendEvent("click");
             // simulate button click effect, windows does not have this issue
