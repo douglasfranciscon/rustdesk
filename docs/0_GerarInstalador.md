@@ -131,6 +131,10 @@ Nesse caso, desinstalar antes. O `.exe` portátil não tem esse problema.
 
 ## 6. Assinar o Windows (.exe / .msi) manualmente
 
+> Se algum cliente receber "Imagem Incorreta" citando uma DLL (Windows 11 com Controle Inteligente
+> de Aplicativos), assinar só o `.exe`/`.msi` não basta: as DLLs de dentro também precisam de
+> assinatura. O processo em duas etapas está em [2_AssinarDLLs.md](2_AssinarDLLs.md).
+
 O `.exe`/`.msi` que sai do CI **não é assinado** — o mecanismo de assinatura do workflow (`res/job.py`, secrets `SIGN_BASE_URL`/`SIGN_SECRET_KEY`) espera um servidor de assinatura HTTP próprio, que não existe aqui. Além disso, o certificado de code-signing fica num token/HSM de hardware, que uma máquina virtual do GitHub Actions não consegue acessar — então essa assinatura precisa ser feita manualmente, na máquina onde o token está conectado.
 
 Passo a passo, depois de baixar `BRRemote-<versão>-x86_64.exe`/`.msi` da aba Releases:

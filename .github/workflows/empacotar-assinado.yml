@@ -1,0 +1,155 @@
+name: Empacotar Windows com DLLs assinadas
+
+# CUSTOM BRANDING: the second half of a two-stage Windows release, for when the
+# DLLs inside the installer must be signed too (Windows 11 Smart App Control
+# refuses unsigned DLLs, and signing only the outer .exe/.msi leaves the ones
+# packed inside it unsigned).
+#
+# The certificate lives on a hardware token, out of CI's reach, so signing
+# happens in the middle, by hand:
+#   1. "Flutter Nightly Build" (unchanged) compiles and leaves the raw folder as
+#      the artifact rustdesk-unsigned-windows-x86_64.
+#   2. Douglas signs every .exe/.dll in it (res/sign/assinar-pasta.ps1) and
+#      attaches the zip to the release the build published to.
+#   3. This workflow packs that signed folder into the portable .exe and the
+#      .msi, exactly as the build does, and hands them back as an artifact.
+#   4. Douglas signs the outer .exe/.msi as before.
+# See docs/2_AssinarDLLs.md. x86_64 only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Número do build da etapa 1: o N de 1.4.9.N (o número da execução do Flutter Nightly Build)"
+        required: true
+        type: string
+      brand:
+        description: "Marca: a mesma pasta usada na etapa 1 (vazio = BR Remote padrão)"
+        type: string
+        default: ""
+      zip:
+        description: "Nome do zip assinado anexado à release (nightly, ou nightly-<marca>)"
+        type: string
+        default: "assinado-x86_64.zip"
+
+permissions:
+  contents: read
+
+env:
+  VERSION: "1.4.9"
+  # The toolchain the Windows build uses (SCITER_RUST_VERSION in flutter-build.yml).
+  RUST_VERSION: "1.75"
+  TAG_NAME: ${{ inputs.brand != '' && format('nightly-{0}', inputs.brand) || 'nightly' }}
+
+jobs:
+  package-x86_64:
+    name: Empacotar x86_64
+    runs-on: windows-2022
+    steps:
+      - name: Check the inputs
+        shell: bash
+        env:
+          BUILD: ${{ inputs.build }}
+          ZIP: ${{ inputs.zip }}
+        run: |
+          # The build number names the files and stamps the version the installer
+          # registers, so it must be the stage-1 one, and only digits.
+          [[ "$BUILD" =~ ^[0-9]+$ ]] || { echo "::error::build must be the stage-1 run number (digits only), got '$BUILD'"; exit 1; }
+          [[ "$ZIP" =~ ^[A-Za-z0-9._-]+\.zip$ ]] || { echo "::error::zip must be a plain .zip file name, got '$ZIP'"; exit 1; }
+
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      # The packer's and the MSI's icons come from the tree (res/icon.ico...), so
+      # the brand is applied here too; what was compiled already came from stage 1.
+      - name: Apply brand
+        uses: ./.github/actions/apply-brand
+        with:
+          brand: ${{ inputs.brand }}
+          token: ${{ secrets.BRAND_ASSETS_TOKEN }}
+
+      - name: Stamp the packer version
+        shell: bash
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          # Same stamp as the build's patch step, with the stage-1 number.
+          sed -i "s|^#ProductVersion = \"\"|ProductVersion = \"$VERSION.$BUILD\"\nFileVersion = \"$VERSION.$BUILD\"|" libs/portable/Cargo.toml
+          grep -Fq "ProductVersion = \"$VERSION.$BUILD\"" libs/portable/Cargo.toml || { echo "::error::ProductVersion not stamped in libs/portable/Cargo.toml"; exit 1; }
+          sed -i '/dpiAware/d' res/manifest.xml
+
+      - name: Fetch the signed folder
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ inputs.zip }}
+        run: |
+          gh release download $env:TAG_NAME -p $env:ZIP -R $env:GITHUB_REPOSITORY -D signed-zip
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::$env:ZIP not found on release $env:TAG_NAME"; exit 1 }
+          Expand-Archive "signed-zip/$env:ZIP" -DestinationPath signed
+          # Zipped with or without its top folder: the app folder is wherever BRRemote.exe is.
+          $exe = Get-ChildItem signed -Recurse -Filter BRRemote.exe | Select-Object -First 1
+          if (-not $exe) { Write-Output "::error::BRRemote.exe is not in $env:ZIP"; exit 1 }
+          Move-Item $exe.DirectoryName ./rustdesk
+          Get-ChildItem ./rustdesk | Format-Table Name, Length
+
+      - name: Check every exe and dll is signed
+        shell: pwsh
+        run: |
+          # The point of this workflow: refuse to pack anything left unsigned.
+          $files = Get-ChildItem ./rustdesk -Recurse -File -Include *.exe, *.dll
+          $bad = @()
+          foreach ($f in $files) {
+            $s = Get-AuthenticodeSignature $f.FullName
+            Write-Output ("{0,-12} {1}  {2}" -f $s.Status, $f.FullName.Substring((Resolve-Path ./rustdesk).Path.Length + 1), $s.SignerCertificate.Subject)
+            if ($s.Status -ne 'Valid') { $bad += $f.FullName }
+          }
+          if ($bad.Count -gt 0) {
+            Write-Output "::error::$($bad.Count) file(s) without a valid signature - sign them with res/sign/assinar-pasta.ps1 and upload the zip again"
+            exit 1
+          }
+          Write-Output "$($files.Count) exe/dll, all signed"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+
+      # From here on, the same steps as build-for-windows-flutter in
+      # flutter-build.yml, fed with the signed folder and the stage-1 number.
+      - name: Build self-extracted executable
+        shell: bash
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          pushd ./libs/portable
+          pip3 install -r requirements.txt
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/BRRemote.exe
+          popd
+          mkdir -p ./SignOutput
+          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/BRRemote-$VERSION.$BUILD-x86_64.exe"
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
+
+      - name: Build msi
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          pushd ./res/msi
+          python preprocess.py --arp -d ../../rustdesk --app-name "BRRemote" --revision-version $env:BUILD
+          nuget restore msi.sln
+          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          mv $msi.FullName "../../SignOutput/BRRemote-$env:VERSION.$env:BUILD-x86_64.msi"
+          popd
+          Get-ChildItem ./SignOutput | Format-Table Name, Length
+
+      - name: Upload the packed files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: BRRemote-${{ env.VERSION }}.${{ inputs.build }}-x86_64-dlls-assinadas
+          path: SignOutput
