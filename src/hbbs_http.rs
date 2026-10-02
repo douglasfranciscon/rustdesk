@@ -4,6 +4,9 @@ use serde_json::{Map, Value};
 
 #[cfg(feature = "flutter")]
 pub mod account;
+// CUSTOM BRANDING: the machine registers itself in its brand's catalog.
+#[cfg(not(target_os = "ios"))]
+pub mod catalog;
 pub mod downloader;
 mod http_client;
 pub mod record_upload;

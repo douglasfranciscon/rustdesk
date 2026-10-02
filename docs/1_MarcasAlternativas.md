@@ -184,6 +184,7 @@ Se um dia for preciso que duas marcas convivam, aí o nome do app também tem qu
 | `res/brand/apply-brand.sh` | copia a pasta da marca por cima da árvore e valida os caminhos; grava o nome da pasta, o `site.txt` e os tons do `cor.txt` no `brand.dart` |
 | `res/brand/brand_colors.py` | deriva os cinco tons a partir da cor do `cor.txt` |
 | `flutter/lib/brand.dart` | sufixo do título, site do "Website" e os cinco tons (lidos pelo `MyTheme`); o que está commitado é o build padrão |
+| `src/brand.rs` | a marca no núcleo: decide em que catálogo de máquinas a máquina se cadastra (ver [3_CatalogoMaquinas.md](3_CatalogoMaquinas.md)) |
 | `res/brand/paths.txt` | lista dos caminhos de marca conhecidos (gera os avisos de "kept") |
 | `.github/actions/apply-brand/action.yml` | baixa do repositório privado **só a pasta da marca** (o keystore e as senhas, na raiz dele, nem chegam à máquina do build) e chama o script |
 | `.github/workflows/flutter-nightly.yml` | o campo "Marca" do "Run workflow" e a release por marca |

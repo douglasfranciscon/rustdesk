@@ -49,6 +49,7 @@ BRAND_DIR="$(cd "$BRAND_DIR" && pwd)"
 KNOWN_PATHS="$REPO_ROOT/res/brand/paths.txt"
 
 BRAND_DART="$REPO_ROOT/flutter/lib/brand.dart"
+BRAND_RS="$REPO_ROOT/src/brand.rs"
 SITE_FILE="site.txt"
 COLOR_FILE="cor.txt"
 COLORS_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/brand_colors.py"
@@ -205,6 +206,16 @@ set_brand_int() {
 
 set_brand_const kBrandFolder "$brand_name"
 echo "  title     ${brand_name:-(no suffix)}"
+
+# The core's copy of the brand (src/brand.rs): the machine registers itself in this
+# brand's catalog. The "&" in the replacement is escaped - unescaped, sed would put
+# the whole matched line there.
+sed -i "s|^pub const BRAND_FOLDER: &str = \"[^\"]*\";|pub const BRAND_FOLDER: \&str = \"$brand_name\";|" "$BRAND_RS"
+if ! grep -Fq "pub const BRAND_FOLDER: &str = \"$brand_name\";" "$BRAND_RS"; then
+    echo "apply-brand: could not set BRAND_FOLDER in $BRAND_RS" >&2
+    exit 1
+fi
+echo "  catalog   ${brand_name:-(default)}"
 if [ -n "$brand_site" ]; then
     set_brand_const kBrandWebsite "$brand_site"
     echo "  website   $brand_site"

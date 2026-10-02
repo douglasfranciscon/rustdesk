@@ -6,3 +6,4 @@
 res/brand/apply-brand.sh text eol=lf
 res/brand/paths.txt text eol=lf
 flutter/lib/brand.dart text eol=lf
+src/brand.rs text eol=lf

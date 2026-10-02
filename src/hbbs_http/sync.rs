@@ -91,6 +91,8 @@ async fn start_hbbs_sync_async() {
     let mut last_sent: Option<Instant> = None;
     let mut info_uploaded = InfoUploaded::default();
     let mut sysinfo_ver = "".to_owned();
+    // CUSTOM BRANDING: registration in the brand's machine catalog (catalog.rs).
+    let mut catalog = super::catalog::Catalog::default();
     loop {
         tokio::select! {
             _ = interval.tick() => {
@@ -103,6 +105,9 @@ async fn start_hbbs_sync_async() {
                 if config::option2bool("stop-service", &Config::get_option("stop-service")) {
                     continue;
                 }
+                // CUSTOM BRANDING: keep this machine registered in its brand's catalog.
+                // Self-throttled (a look a minute, a POST only when something changed).
+                catalog.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
                 let conns = Connection::alive_conns();
                 if info_uploaded.uploaded && (url != info_uploaded.url || id != info_uploaded.id) {
                     info_uploaded.uploaded = false;
