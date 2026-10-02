@@ -49,8 +49,9 @@ class Install: Reactor.Component {
         }
     }
 
+    // CUSTOM BRANDING: the agreement link leads to BR PROJ, not upstream.
     event click $(#agreement) {
-        view.open_url("http://rustdesk.com/privacy");
+        view.open_url("https://www.brproj.com.br");
     }
 
     event click $(#submit) {

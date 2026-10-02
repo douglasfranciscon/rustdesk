@@ -14,7 +14,10 @@ lazy_static::lazy_static! {
     static ref CURRENT_2FA: Mutex<Option<(TOTPInfo, TOTP)>> = Mutex::new(None);
 }
 
-const ISSUER: &str = "RustDesk";
+// CUSTOM BRANDING: the name the authenticator app shows for the 2FA entry
+// ("BR Remote Connection"). Codes depend only on the secret, so entries added
+// under upstream's "RustDesk" keep working; they just keep their old label.
+const ISSUER: &str = "BR Remote";
 const TAG_LOGIN: &str = "Connection";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

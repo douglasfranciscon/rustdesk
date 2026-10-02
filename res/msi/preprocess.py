@@ -18,6 +18,8 @@ g_version = ""
 g_build_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # Replace the following links with your own in the custom arp properties.
+# CUSTOM BRANDING: BR PROJ's site, not upstream's GitHub - these show as the
+# support/help links in Programs and Features.
 # https://learn.microsoft.com/en-us/windows/win32/msi/property-reference
 g_arpsystemcomponent = {
     "Comments": {
@@ -27,15 +29,15 @@ g_arpsystemcomponent = {
     },
     "Contact": {
         "msi": "ARPCONTACT",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://www.brproj.com.br",
     },
     "HelpLink": {
         "msi": "ARPHELPLINK",
-        "v": "https://github.com/rustdesk/rustdesk/issues/",
+        "v": "https://www.brproj.com.br",
     },
     "ReadMe": {
         "msi": "ARPREADME",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://www.brproj.com.br",
     },
 }
 
@@ -85,7 +87,8 @@ def make_parser():
         "-m",
         "--manufacturer",
         type=str,
-        default="Purslane Tech Pte. Ltd.",
+        # CUSTOM BRANDING: shows as the Publisher in Programs and Features.
+        default="BR PROJ",
         help="The app manufacturer.",
     )
     return parser

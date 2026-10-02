@@ -1223,13 +1223,15 @@ pub fn portable_service_logon_helper_paths() -> Option<(PathBuf, PathBuf)> {
     // Keep parity with history for now: derive LocalAppData from user profile path.
     // If users report redirected/non-standard LocalAppData issues, switch to:
     // `BaseDirs::new()?.data_local_dir()` for Known Folder-based resolution.
+    // CUSTOM BRANDING: this folder and process show to the user (Explorer, Task
+    // Manager) when the 32-bit portable elevates; upstream named them rustdesk.
     let user_dir = hbb_common::directories_next::UserDirs::new()?;
     let dir = user_dir
         .home_dir()
         .join("AppData")
         .join("Local")
-        .join("rustdesk-sciter");
-    let dst = dir.join("rustdesk.exe");
+        .join("BRRemote-sciter");
+    let dst = dir.join("BRRemote.exe");
     Some((dir, dst))
 }
 

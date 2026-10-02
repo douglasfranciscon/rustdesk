@@ -84,16 +84,14 @@ class ConnectStatus: Reactor.Component {
         } else if (connect_status == 0) {
             return translate('connecting_status');
         }
-        if (!handler.using_public_server()) return translate('Ready');
-        return <span>{translate("Ready")}, <span .link #setup-server>{translate("setup_server_tip")}</span></span>;
+        // CUSTOM BRANDING: the server is built in. Upstream added "set up your own
+        // server for a faster connection" (a link to its blog) whenever no custom
+        // server option is set - always, here - which would only mislead a client.
+        return translate('Ready');
     }
 
     event click $(#start-service) () {
         handler.set_option("stop-service", "");
-    }
-
-    event click $(#setup-server) () {
-        handler.open_url("https://rustdesk.com/blog/id-relay-set/");
     }
 }
 
@@ -1345,8 +1343,9 @@ event change $(#msgbox input[name='confirmation']) {
 
 $(body).content(<div style="size:*"><App /><div #msgbox /></div>);
 
+// CUSTOM BRANDING: "Desenvolvido por BR PROJ" leads to BR PROJ, not upstream.
 event click $(#powered-by) {
-    handler.open_url("https://rustdesk.com");
+    handler.open_url("https://www.brproj.com.br");
 }
 
 event click $(#open-settings) (_, me) {

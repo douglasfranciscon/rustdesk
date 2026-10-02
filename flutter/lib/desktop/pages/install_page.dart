@@ -184,12 +184,14 @@ class _InstallPageBodyState extends State<_InstallPageBody>
                         children: [
                           Text(translate('agreement_tip'))
                               .marginOnly(bottom: em),
+                          // CUSTOM BRANDING: the agreement link leads to BR PROJ,
+                          // not upstream's privacy page.
                           InkWell(
                             hoverColor: Colors.transparent,
-                            onTap: () => launchUrlString(
-                                'https://rustdesk.com/privacy.html'),
+                            onTap: () =>
+                                launchUrlString('https://www.brproj.com.br'),
                             child: Tooltip(
-                              message: 'https://rustdesk.com/privacy.html',
+                              message: 'https://www.brproj.com.br',
                               child: Row(children: [
                                 Icon(Icons.launch_outlined, size: 16)
                                     .marginOnly(right: 5),
