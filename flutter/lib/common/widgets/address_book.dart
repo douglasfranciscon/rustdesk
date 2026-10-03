@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
-import 'package:dynamic_layouts/dynamic_layouts.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
 import 'package:flutter_hbb/common/hbbs/hbbs.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
@@ -315,44 +315,53 @@ class _AddressBookState extends State<AddressBook> {
     );
   }
 
+  // CUSTOM BRANDING: the tags as a list, one per line, always in alphabetical
+  // order, under "Todas" and "Sem etiqueta". A click shows only that tag, so going
+  // down the list walks through them; Ctrl+click still adds or drops one more.
+  // With the catalog there is a tag per attendant's email, and switching each one
+  // on and off in a wrapped cloud of chips did not scale.
   Widget _buildTags() {
     return Obx(() {
-      List tags;
-      if (gFFI.abModel.sortTags.value) {
-        tags = gFFI.abModel.currentAbTags.toList();
-        tags.sort();
-      } else {
-        tags = gFFI.abModel.currentAbTags.toList();
-      }
-      tags = [kUntagged, ...tags].toList();
+      final tags = gFFI.abModel.currentAbTags.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final items = [kUntagged, ...tags];
       final editPermission = gFFI.abModel.current.canWrite();
-      tagBuilder(String e) {
+      Widget itemBuilder(BuildContext context, int index) {
+        if (index == 0) {
+          return _AllTagsItem();
+        }
+        final e = items[index - 1];
         return AddressBookTag(
             name: e,
             tags: gFFI.abModel.selectedTags,
-            onTap: () {
-              if (gFFI.abModel.selectedTags.contains(e)) {
-                gFFI.abModel.selectedTags.remove(e);
-              } else {
-                gFFI.abModel.selectedTags.add(e);
-              }
-            },
+            expand: true,
+            onTap: () => _selectTag(e),
             showActionMenu: editPermission);
       }
 
-      gridView(bool isPortrait) => DynamicGridView.builder(
+      listView(bool isPortrait) => ListView.builder(
           shrinkWrap: isPortrait,
-          gridDelegate: SliverGridDelegateWithWrapping(),
-          itemCount: tags.length,
-          itemBuilder: (BuildContext context, int index) {
-            final e = tags[index];
-            return tagBuilder(e);
-          });
+          itemCount: items.length + 1,
+          itemBuilder: itemBuilder);
       final maxHeight = max(MediaQuery.of(context).size.height / 6, 100.0);
       return Obx(() => stateGlobal.isPortrait.isFalse
-          ? gridView(false)
-          : LimitedBox(maxHeight: maxHeight, child: gridView(true)));
+          ? listView(false)
+          : LimitedBox(maxHeight: maxHeight, child: listView(true)));
     });
+  }
+
+  void _selectTag(String tag) {
+    final selected = gFFI.abModel.selectedTags;
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed || keyboard.isMetaPressed) {
+      if (selected.contains(tag)) {
+        selected.remove(tag);
+      } else {
+        selected.add(tag);
+      }
+    } else {
+      selected.assignAll([tag]);
+    }
   }
 
   Widget _buildPeersViews() {
@@ -376,25 +385,6 @@ class _AddressBookState extends State<AddressBook> {
       },
       setter: (bool v) async {
         gFFI.abModel.setShouldAsync(v);
-      },
-      dismissOnClicked: true,
-      enabled: (!isOptFixed).obs,
-    );
-  }
-
-  @protected
-  MenuEntryBase<String> sortMenuItem() {
-    final isOptFixed = isOptionFixed(sortAbTagsOption);
-    return MenuEntrySwitch<String>(
-      switchType: SwitchType.scheckbox,
-      text: translate('Sort tags'),
-      getter: () async {
-        return shouldSortTags();
-      },
-      setter: (bool v) async {
-        bind.mainSetLocalOption(
-            key: sortAbTagsOption, value: v ? 'Y' : defaultOptionNo);
-        gFFI.abModel.sortTags.value = v;
       },
       dismissOnClicked: true,
       enabled: (!isOptFixed).obs,
@@ -426,8 +416,7 @@ class _AddressBookState extends State<AddressBook> {
       if (canWrite) getEntry(translate("Add ID"), addIdToCurrentAb),
       if (canWrite) getEntry(translate("Add Tag"), abAddTag),
       getEntry(translate("Unselect all tags"), gFFI.abModel.unsetSelectedTags),
-      if (gFFI.abModel.legacyMode.value)
-        sortMenuItem(), // It's already sorted after pulling down
+      // CUSTOM BRANDING: no "Sort tags" switch - the list is always sorted.
       if (canWrite) syncMenuItem(),
       filterMenuItem(),
       if (!gFFI.abModel.legacyMode.value && canWrite)
@@ -749,18 +738,49 @@ class _AddressBookState extends State<AddressBook> {
   }
 }
 
+// CUSTOM BRANDING: the first row of the tags list. Selected while no tag is, and a
+// click on it clears the selection, showing every machine again.
+class _AllTagsItem extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: gFFI.abModel.unsetSelectedTags,
+      child: Obx(() {
+        final selected = gFFI.abModel.selectedTags.isEmpty;
+        return Container(
+          decoration: BoxDecoration(
+              color: selected
+                  ? MyTheme.accent
+                  : Theme.of(context).colorScheme.background,
+              borderRadius: BorderRadius.circular(4)),
+          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
+          child: Text('Todas',
+              style: TextStyle(
+                  overflow: TextOverflow.ellipsis,
+                  color: selected ? Colors.white : null)),
+        );
+      }),
+    );
+  }
+}
+
 class AddressBookTag extends StatelessWidget {
   final String name;
   final RxList<dynamic> tags;
   final Function()? onTap;
   final bool showActionMenu;
+  // CUSTOM BRANDING: true in the tags panel, where each tag is a whole row of
+  // the list; the chips in the "Add ID" dialog keep their own width.
+  final bool expand;
 
   const AddressBookTag(
       {Key? key,
       required this.name,
       required this.tags,
       this.onTap,
-      this.showActionMenu = true})
+      this.showActionMenu = true,
+      this.expand = false})
       : super(key: key);
 
   @override
@@ -776,43 +796,56 @@ class AddressBookTag extends StatelessWidget {
     const double radius = 8;
     final isUnTagged = name == kUntagged;
     final showAction = showActionMenu && !isUnTagged;
+    final label = isUnTagged ? translate(name) : name;
     return GestureDetector(
       onTap: onTap,
       onTapDown: showAction ? setPosition : null,
       onSecondaryTapDown: showAction ? setPosition : null,
       onSecondaryTap: showAction ? () => _showMenu(context, pos) : null,
       onLongPress: showAction ? () => _showMenu(context, pos) : null,
-      child: Obx(() => Container(
-            decoration: BoxDecoration(
-                color: tags.contains(name)
-                    ? gFFI.abModel.getCurrentAbTagColor(name)
-                    : Theme.of(context).colorScheme.background,
-                borderRadius: BorderRadius.circular(4)),
-            margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-            padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 6.0),
-            child: IntrinsicWidth(
-              child: Row(
-                children: [
-                  if (!isUnTagged)
-                    Container(
-                      width: radius,
-                      height: radius,
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: tags.contains(name)
-                              ? Colors.white
-                              : gFFI.abModel.getCurrentAbTagColor(name)),
-                    ).marginOnly(right: radius / 2),
-                  Expanded(
-                    child: Text(isUnTagged ? translate(name) : name,
-                        style: TextStyle(
-                            overflow: TextOverflow.ellipsis,
-                            color: tags.contains(name) ? Colors.white : null)),
-                  ),
-                ],
-              ),
+      child: Obx(() {
+        final row = Row(
+          children: [
+            if (!isUnTagged)
+              Container(
+                width: radius,
+                height: radius,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: tags.contains(name)
+                        ? Colors.white
+                        : gFFI.abModel.getCurrentAbTagColor(name)),
+              ).marginOnly(right: radius / 2),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      overflow: TextOverflow.ellipsis,
+                      color: tags.contains(name) ? Colors.white : null)),
             ),
-          )),
+          ],
+        );
+        final chip = Container(
+          decoration: BoxDecoration(
+              color: tags.contains(name)
+                  ? gFFI.abModel.getCurrentAbTagColor(name)
+                  : Theme.of(context).colorScheme.background,
+              borderRadius: BorderRadius.circular(4)),
+          margin: expand
+              ? const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0)
+              : const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+          padding: expand
+              ? const EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0)
+              : const EdgeInsets.symmetric(vertical: 2.0, horizontal: 6.0),
+          child: expand ? row : IntrinsicWidth(child: row),
+        );
+        // A long name (an email) is cut with "…"; the whole one shows on hover.
+        return expand
+            ? Tooltip(
+                message: label,
+                waitDuration: const Duration(milliseconds: 500),
+                child: chip)
+            : chip;
+      }),
     );
   }
 
