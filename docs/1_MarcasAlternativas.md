@@ -41,6 +41,23 @@ A pasta não precisa estar completa: o que ela não traz continua saindo com a a
 O `LEIAME.md` de cada marca traz a **tabela de tamanhos** de cada arquivo (é o que se manda para
 quem for desenhar), e `res/brand/paths.txt` lista todos os caminhos de marca conhecidos.
 
+Desde 30/10/2026 os builds de **macOS e Linux** também passam pelo "Apply brand" (antes só Windows e
+Android). A arte deles ainda **não existe nas pastas das marcas** — enquanto não existir, esses
+pontos saem com a arte da BR e o passo avisa `kept`:
+
+| Arquivo | Tamanho | O que é |
+|---|---|---|
+| `res/mac-icon.png` | 1024×1024, fundo transparente, tile arredondado | ícone do app no macOS (Finder, Dock) |
+| `flutter/macos/Runner/AppIcon.icns` | 16 a 1024 (gerado do `mac-icon.png`) | o mesmo, no formato que o bundle usa |
+| `res/mac-tray-dark-x2.png` e `res/mac-tray-light-x2.png` | 60×60, silhueta preta / branca com alfa | ícone da barra de menus do macOS (template) |
+| `res/icon.png` | 1024×1024 | ícone grande do Linux |
+| `res/scalable.svg` | SVG 256×256 (pode embutir o PNG) | ícone "scalable" do tema de ícones do Linux |
+
+Para a BR esses arquivos foram gerados a partir do `res/icon.ico` de 256 px por
+`res/brand/gerar_icones_mac_linux.py` (precisa do Pillow). O mesmo script serve para uma marca:
+`python res/brand/gerar_icones_mac_linux.py marcas/<marca>` lê o `res/icon.ico` da pasta e grava
+os cinco arquivos nela, nos caminhos certos.
+
 ## Criar uma marca nova
 
 1. No `br-suporte-secrets`, copie `marcas/brremote` para `marcas/<codinome>`.
@@ -168,7 +185,7 @@ com a arte antiga).
 
 Nome do app, textos e servidor são iguais para todas as marcas — o sufixo no título é só
 o que se vê na barra da janela; o nome interno, o serviço e a pasta de instalação continuam
-`BRRemote`. Duas consequências:
+`BRRemote` (no macOS `BRRemote.app`; no Linux `brremote`, minúsculo). Duas consequências:
 
 - Os instaladores têm o mesmo nome de arquivo e o mesmo código de produto: instalar a marca B por
   cima da A é **atualização no lugar**, não duas instalações convivendo na mesma máquina.

@@ -1,17 +1,17 @@
-Name:       rustdesk
+Name:       brremote
 Version:    1.4.9
 Release:    0
-Summary:    RPM package
+Summary:    BR Remote
 License:    GPL-3.0
-URL:        https://rustdesk.com
-Vendor:     rustdesk <info@rustdesk.com>
+URL:        https://www.brproj.com.br
+Vendor:     BR PROJ
 Requires:   gtk3 libxcb libXfixes alsa-lib libva2 pam gstreamer1-plugins-base
 Recommends: libayatana-appindicator-gtk3 libxdo
 
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/
 
 %description
-The best open-source remote desktop client software, written in Rust.
+BR Remote, acesso remoto da BR PROJ.
 
 %prep
 # we have no source, so nothing here
@@ -23,27 +23,27 @@ The best open-source remote desktop client software, written in Rust.
 
 %install
 mkdir -p %{buildroot}/usr/bin/
-mkdir -p %{buildroot}/usr/share/rustdesk/
-mkdir -p %{buildroot}/usr/share/rustdesk/files/
+mkdir -p %{buildroot}/usr/share/brremote/
+mkdir -p %{buildroot}/usr/share/brremote/files/
 mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps/
 mkdir -p %{buildroot}/usr/share/icons/hicolor/scalable/apps/
-install -m 755 $HBB/target/release/rustdesk %{buildroot}/usr/bin/rustdesk
-install $HBB/libsciter-gtk.so %{buildroot}/usr/share/rustdesk/libsciter-gtk.so
-install $HBB/res/rustdesk.service %{buildroot}/usr/share/rustdesk/files/
-install $HBB/res/128x128@2x.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/rustdesk.png
-install $HBB/res/scalable.svg %{buildroot}/usr/share/icons/hicolor/scalable/apps/rustdesk.svg
-install $HBB/res/rustdesk.desktop %{buildroot}/usr/share/rustdesk/files/
-install $HBB/res/rustdesk-link.desktop %{buildroot}/usr/share/rustdesk/files/
+install -m 755 $HBB/target/release/brremote %{buildroot}/usr/bin/brremote
+install $HBB/libsciter-gtk.so %{buildroot}/usr/share/brremote/libsciter-gtk.so
+install $HBB/res/brremote.service %{buildroot}/usr/share/brremote/files/
+install $HBB/res/128x128@2x.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/brremote.png
+install $HBB/res/scalable.svg %{buildroot}/usr/share/icons/hicolor/scalable/apps/brremote.svg
+install $HBB/res/brremote.desktop %{buildroot}/usr/share/brremote/files/
+install $HBB/res/brremote-link.desktop %{buildroot}/usr/share/brremote/files/
 
 %files
-/usr/bin/rustdesk
-/usr/share/rustdesk/libsciter-gtk.so
-/usr/share/rustdesk/files/rustdesk.service
-/usr/share/icons/hicolor/256x256/apps/rustdesk.png
-/usr/share/icons/hicolor/scalable/apps/rustdesk.svg
-/usr/share/rustdesk/files/rustdesk.desktop
-/usr/share/rustdesk/files/rustdesk-link.desktop
-/usr/share/rustdesk/files/__pycache__/*
+/usr/bin/brremote
+/usr/share/brremote/libsciter-gtk.so
+/usr/share/brremote/files/brremote.service
+/usr/share/icons/hicolor/256x256/apps/brremote.png
+/usr/share/icons/hicolor/scalable/apps/brremote.svg
+/usr/share/brremote/files/brremote.desktop
+/usr/share/brremote/files/brremote-link.desktop
+/usr/share/brremote/files/__pycache__/*
 
 %changelog
 # let's skip this for now
@@ -56,26 +56,26 @@ case "$1" in
   ;;
   2)
     # for upgrade
-    systemctl stop rustdesk || true
+    systemctl stop brremote || true
   ;;
 esac
 
 %post
-cp /usr/share/rustdesk/files/rustdesk.service /etc/systemd/system/rustdesk.service
-cp /usr/share/rustdesk/files/rustdesk.desktop /usr/share/applications/
-cp /usr/share/rustdesk/files/rustdesk-link.desktop /usr/share/applications/
+cp /usr/share/brremote/files/brremote.service /etc/systemd/system/brremote.service
+cp /usr/share/brremote/files/brremote.desktop /usr/share/applications/
+cp /usr/share/brremote/files/brremote-link.desktop /usr/share/applications/
 systemctl daemon-reload
-systemctl enable rustdesk
-systemctl start rustdesk
+systemctl enable brremote
+systemctl start brremote
 update-desktop-database
 
 %preun
 case "$1" in
   0)
     # for uninstall
-    systemctl stop rustdesk || true
-    systemctl disable rustdesk || true
-    rm /etc/systemd/system/rustdesk.service || true
+    systemctl stop brremote || true
+    systemctl disable brremote || true
+    rm /etc/systemd/system/brremote.service || true
   ;;
   1)
     # for upgrade
@@ -86,8 +86,8 @@ esac
 case "$1" in
   0)
     # for uninstall
-    rm /usr/share/applications/rustdesk.desktop || true
-    rm /usr/share/applications/rustdesk-link.desktop || true
+    rm /usr/share/applications/brremote.desktop || true
+    rm /usr/share/applications/brremote-link.desktop || true
     update-desktop-database
   ;;
   1)

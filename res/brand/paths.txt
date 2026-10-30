@@ -15,11 +15,19 @@ flutter/assets/logo.png
 flutter/assets/logo_light.png
 flutter/assets/logo_dark.png
 
-# --- Linux / macOS packaging icons ---
+# --- Linux packaging icons ---
 res/32x32.png
 res/64x64.png
 res/128x128.png
 res/128x128@2x.png
+res/icon.png
+res/scalable.svg
+
+# --- macOS: app icon (Finder/Dock) and the menu-bar template icon ---
+res/mac-icon.png
+flutter/macos/Runner/AppIcon.icns
+res/mac-tray-dark-x2.png
+res/mac-tray-light-x2.png
 
 # --- Android launcher icon (5 densities x 3 layers) ---
 flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
@@ -46,10 +54,4 @@ flutter/android/app/src/main/res/mipmap-hdpi/ic_stat_logo.png
 flutter/android/app/src/main/res/mipmap-xhdpi/ic_stat_logo.png
 flutter/android/app/src/main/res/mipmap-xxhdpi/ic_stat_logo.png
 flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_stat_logo.png
-res/icon.png
-res/mac-icon.png
-res/mac-tray-dark-x2.png
-res/mac-tray-light-x2.png
-res/scalable.svg
 res/logo.svg
-flutter/macos/Runner/AppIcon.icns

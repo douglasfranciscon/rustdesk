@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>br.com.brproj.BRRemote</id>
+  <developer id="br.com.brproj">
+    <name>BR PROJ</name>
+  </developer>
+  <launchable type="desktop-id">br.com.brproj.BRRemote.desktop</launchable>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0</project_license>
+  <name>BR Remote</name>
+  <summary>Acesso remoto da BR PROJ</summary>
+  <description>
+    <p>
+      BR Remote é o aplicativo de acesso remoto da BR PROJ, usado para atender e dar suporte às máquinas dos clientes.
+    </p>
+  </description>
+  <content_rating type="oars-1.1"/>
+  <url type="homepage">https://www.brproj.com.br</url>
+</component>

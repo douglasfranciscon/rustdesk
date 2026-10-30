@@ -104,13 +104,31 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
   - (se Android rodou) `BRRemote-<versão>-<arch>.apk` — vai pra Releases também (assinado se os 4 secrets do Android estiverem configurados, senão sem assinatura)
   - (se "Build only Windows" ficou desmarcado) `BRRemote-<versão>-x86-sciter.exe` → o Windows **32 bits**, para máquina que não roda o de 64. É a interface **antiga (Sciter)**, não a Flutter: leva servidor, chave, nome, senha fixa, os ícones da marca (inclusive o da janela) e o **verde da BR** — sempre o verde, mesmo nas marcas com outra cor — e o Sobre aponta para a BR PROJ; não leva as demais telas personalizadas (cor do cliente, título, avisos de versão e licença). ⚠️ Ele **só recebe** conexões: mostra ID e senha e não conecta em ninguém (nem pelo botão, nem por `--connect`, nem por arquivo `.brremote`), **com ou sem login** — a interface antiga até tem Login no menu, mas o modo só-recebe vale de qualquer jeito. Serve para o cliente ser atendido, nunca para prestar suporte; quem presta suporte usa o de 64 bits, logado (a licença é cobrada no login).
 
+  - (se "Build only Windows" ficou desmarcado) **macOS**: `BRRemote-<versão>-aarch64.dmg` (Mac com
+    chip Apple: M1, M2, M4) e `BRRemote-<versão>-x86_64.dmg` (Mac Intel). Instala-se arrastando para
+    Applications; o app se chama `BRRemote.app` e aparece como "BR Remote". ⚠️ Decidido em
+    30/10/2026: **não vamos ter conta Apple Developer**, então o build de macOS **não é assinado nem
+    notarizado** e o macOS recusa abrir com "está danificado". Depois de arrastar, rodar no Terminal
+    `xattr -cr /Applications/BRRemote.app` (ou liberar em Ajustes → Privacidade e Segurança → "Abrir
+    mesmo assim"), e na primeira abertura dar ao app **Gravação de Tela** e **Acessibilidade**.
+  - (idem) **Linux**: `BRRemote-<versão>-x86_64.deb` e `-aarch64.deb` (Ubuntu/Debian:
+    `sudo apt install ./BRRemote-<versão>-x86_64.deb`), mais `.rpm` (Fedora), `-suse.rpm`,
+    `.AppImage` (roda sem instalar, não registra o serviço), `.flatpak` e `.pkg.tar.zst` (Arch).
+    Pacote, binário, serviço (`systemctl status brremote`), pasta de instalação (`/usr/share/brremote`)
+    e pasta de configuração (`~/.config/brremote`) se chamam `brremote`; o atalho no menu é "BR
+    Remote". O `-sciter.deb` é a interface antiga, como o x86 do Windows.
+
+  ⚠️ Até 30/10/2026 os jobs de macOS e Linux **não aplicavam o servidor da BR nem a marca**: os
+  `.dmg`/`.deb` publicados antes dessa data (nome `rustdesk-…`) são o RustDesk original apontado
+  para o servidor público do RustDesk. Não distribuir; gerar de novo.
+
   Nos outros builds, **conectar em alguém exige login** no app: sem login a tela não mostra o Conectar, e um link `brremote://` ou `BRRemote.exe --connect` também é recusado com "Faça login no BR Remote para conectar.". Receber conexões nunca exige login.
 
 Se o build foi gerado **com marca**, os arquivos não vão para a release `nightly`, e sim para
 uma release própria da marca — `nightly-invicta`, por exemplo. Os nomes dos arquivos são os
 mesmos (`BRRemote-…`), e é justamente por isso que a release é separada.
 
-O `<versão>` dos arquivos do Windows tem quatro partes: `1.4.9.<n>`, onde `<n>` é o
+O `<versão>` dos arquivos (Windows, macOS e Linux) tem quatro partes: `1.4.9.<n>`, onde `<n>` é o
 número da run do Actions (contador automático, sobe a cada build). Serve pra saber
 qual build é qual — o mesmo número aparece em Propriedades → Detalhes do `.exe` e na
 versão registrada em Programas e Recursos depois de instalar o `.msi`.

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=BR Remote
+NoDisplay=true
+MimeType=x-scheme-handler/brremote;
+TryExec=brremote
+Exec=brremote %u
+Icon=brremote
+Terminal=false
+Type=Application
+StartupNotify=false
+StartupWMClass=brremote
