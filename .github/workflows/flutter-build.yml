@@ -1001,6 +1001,11 @@ jobs:
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
+          # build.py copia o binario "service" (sem assinatura) para dentro do .app depois do Xcode
+          # ter assinado ad-hoc; isso quebra o lacre e o macOS diz "danificado". Reassina ad-hoc
+          # (sem certificado) para o cliente so precisar tirar a quarentena.
+          codesign --force --deep --sign - ./flutter/build/macos/Build/Products/Release/BRRemote.app
+          codesign --verify --deep --strict ./flutter/build/macos/Build/Products/Release/BRRemote.app
           create-dmg --icon "BRRemote.app" 200 190 --hide-extension "BRRemote.app" --window-size 800 400 --app-drop-link 600 185 BRRemote-${{ env.VERSION }}.${{ env.BUILD_NUMBER }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/BRRemote.app
 
       - name: Upload unsigned macOS app

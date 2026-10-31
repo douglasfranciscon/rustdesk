@@ -108,9 +108,17 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
     chip Apple: M1, M2, M4) e `BRRemote-<versão>-x86_64.dmg` (Mac Intel). Instala-se arrastando para
     Applications; o app se chama `BRRemote.app` e aparece como "BR Remote". ⚠️ Decidido em
     30/10/2026: **não vamos ter conta Apple Developer**, então o build de macOS **não é assinado nem
-    notarizado** e o macOS recusa abrir com "está danificado". Depois de arrastar, rodar no Terminal
-    `xattr -cr /Applications/BRRemote.app` (ou liberar em Ajustes → Privacidade e Segurança → "Abrir
-    mesmo assim"), e na primeira abertura dar ao app **Gravação de Tela** e **Acessibilidade**.
+    notarizado** e o macOS recusa abrir com "está danificado". Medido por ele em 31/10/2026 no Mac
+    mini: só tirar a quarentena **não bastava**, porque o `build.py` copia o binário `service` (sem
+    assinatura) para dentro do `.app` depois de o Xcode ter assinado ad-hoc, e isso quebra o lacre
+    do pacote (o "Abrir mesmo assim" nem aparece). O que funcionou foi reassinar ad-hoc e tirar a
+    quarentena:
+    `sudo codesign --force --deep --sign - /Applications/BRRemote.app`,
+    `sudo xattr -dr com.apple.quarantine /Applications/BRRemote.app`, `open /Applications/BRRemote.app`.
+    Desde o build seguinte ao 110 o CI faz essa reassinatura ad-hoc antes de montar o `.dmg` (passo
+    "create unsigned dmg"), então **só o `xattr`** (ou Ajustes → Privacidade e Segurança → "Abrir
+    mesmo assim") deve bastar; se voltar a dizer "danificado", o `codesign` acima resolve. Na
+    primeira abertura dar ao app **Gravação de Tela** e **Acessibilidade**.
   - (idem) **Linux**: `BRRemote-<versão>-x86_64.deb` e `-aarch64.deb` (Ubuntu/Debian:
     `sudo apt install ./BRRemote-<versão>-x86_64.deb`), mais `.rpm` (Fedora), `-suse.rpm`,
     `.AppImage` (roda sem instalar, não registra o serviço), `.flatpak` e `.pkg.tar.zst` (Arch).
