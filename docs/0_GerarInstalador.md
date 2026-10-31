@@ -115,10 +115,11 @@ Quando terminar, tem **dois lugares** pra olhar — não confunda os dois:
     quarentena:
     `sudo codesign --force --deep --sign - /Applications/BRRemote.app`,
     `sudo xattr -dr com.apple.quarantine /Applications/BRRemote.app`, `open /Applications/BRRemote.app`.
-    Desde o build seguinte ao 110 o CI faz essa reassinatura ad-hoc antes de montar o `.dmg` (passo
-    "create unsigned dmg"), então **só o `xattr`** (ou Ajustes → Privacidade e Segurança → "Abrir
-    mesmo assim") deve bastar; se voltar a dizer "danificado", o `codesign` acima resolve. Na
-    primeira abertura dar ao app **Gravação de Tela** e **Acessibilidade**.
+    ⚠️ **Não reassinar no CI.** No build 111 o workflow passou a rodar esse `codesign` ad-hoc antes
+    do `create-dmg` e, no Mac mini dele, **piorou** (31/10/2026); a linha foi retirada no commit
+    seguinte e o `.dmg` sai como antes, sem assinatura. O caminho que vale é o cliente rodar os três
+    comandos acima depois de arrastar. Na primeira abertura dar ao app **Gravação de Tela** e
+    **Acessibilidade**.
   - (idem) **Linux**: `BRRemote-<versão>-x86_64.deb` e `-aarch64.deb` (Ubuntu/Debian:
     `sudo apt install ./BRRemote-<versão>-x86_64.deb`), mais `.rpm` (Fedora), `-suse.rpm`,
     `.AppImage` (roda sem instalar, não registra o serviço), `.flatpak` e `.pkg.tar.zst` (Arch).
