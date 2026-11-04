@@ -147,7 +147,7 @@ class _PeerCardState extends State<_PeerCard>
       children: [
         Container(
             decoration: BoxDecoration(
-              color: str2color('${peer.id}${peer.platform}', 0x7f),
+              color: peerStatusColor(peer.online),
               borderRadius: isPortrait
                   ? BorderRadius.circular(_tileRadius)
                   : BorderRadius.only(
@@ -160,8 +160,7 @@ class _PeerCardState extends State<_PeerCard>
             height: isPortrait ? 50 : null,
             child: Stack(
               children: [
-                getPlatformImage(peer.platform, size: isPortrait ? 38 : 30)
-                    .paddingAll(6),
+                peerStatusIcon(peer, isPortrait ? 38 : 30).paddingAll(6),
                 if (_shouldBuildPasswordIcon(peer))
                   Positioned(
                     top: 1,
@@ -185,7 +184,6 @@ class _PeerCardState extends State<_PeerCard>
                   child: Column(
                     children: [
                       Row(children: [
-                        getOnline(isPortrait ? 4 : 8, peer.online),
                         Expanded(
                             child: Text(
                           peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
@@ -305,7 +303,7 @@ class _PeerCardState extends State<_PeerCard>
               children: [
                 Expanded(
                   child: Container(
-                    color: str2color('${peer.id}${peer.platform}', 0x7f),
+                    color: peerStatusColor(peer.online),
                     child: Row(
                       children: [
                         Expanded(
@@ -314,8 +312,7 @@ class _PeerCardState extends State<_PeerCard>
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(6),
-                                child:
-                                    getPlatformImage(peer.platform, size: 60),
+                                child: peerStatusIcon(peer, 60),
                               ),
                               Row(
                                 children: [
@@ -367,7 +364,6 @@ class _PeerCardState extends State<_PeerCard>
                     children: [
                       Expanded(
                           child: Row(children: [
-                        getOnline(8, peer.online),
                         Expanded(
                             child: Text(
                           peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
@@ -1469,6 +1465,19 @@ void _rdpDialog(String id) async {
     );
   });
 }
+
+// CUSTOM BRANDING: the block behind the platform icon tells the status, so the
+// card has no status dot to confuse with the tag dots. Upstream painted that
+// block with a colour drawn from the peer id, which meant nothing.
+Color peerStatusColor(bool online) =>
+    online ? const Color(0xFF4CAF50) : Colors.grey.withOpacity(0.45);
+
+Widget peerStatusIcon(Peer peer, double size) => Tooltip(
+    message: translate(peer.online ? 'Online' : 'Offline'),
+    waitDuration: const Duration(seconds: 1),
+    child: Opacity(
+        opacity: peer.online ? 1.0 : 0.4,
+        child: getPlatformImage(peer.platform, size: size)));
 
 Widget getOnline(double rightPadding, bool online) {
   return Tooltip(

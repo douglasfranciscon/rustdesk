@@ -340,8 +340,10 @@ extension StringExtension on String {
   String get nonBreaking => replaceAll(' ', String.fromCharCode($nbsp));
 }
 
-const Size kConnectionManagerWindowSizeClosedChat = Size(300, 490);
-const Size kConnectionManagerWindowSizeOpenChat = Size(700, 490);
+// CUSTOM BRANDING: 60 wider than upstream (300/700) so the attendant's name on
+// the connection card (brand, CNPJ, e-mail, one per line) reads at full size.
+const Size kConnectionManagerWindowSizeClosedChat = Size(360, 490);
+const Size kConnectionManagerWindowSizeOpenChat = Size(760, 490);
 // Tabbar transition duration, now we remove the duration
 const Duration kTabTransitionDuration = Duration.zero;
 const double kEmptyMarginTop = 50;

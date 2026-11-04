@@ -468,17 +468,16 @@ class _CmHeaderState extends State<_CmHeader>
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FittedBox(
-                    child: Text(
-                  client.name,
+                Text(
+                  attendantNameLines(client.name),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    overflow: TextOverflow.ellipsis,
+                    fontSize: 16,
+                    height: 1.25,
                   ),
-                  maxLines: 1,
-                )),
+                  softWrap: true,
+                ),
                 FittedBox(
                   child: Text(
                     "(${client.peerId})",
@@ -1450,4 +1449,29 @@ class __FileTransferLogPageState extends State<_FileTransferLogPage> {
           )),
     );
   }
+}
+
+// CUSTOM BRANDING: the attendant's name arrives from the API as parts joined by
+// single spaces (brand, CNPJ, e-mail, in the combination the server chose). The
+// card used to squeeze it all into one line; here every CNPJ and every e-mail
+// gets a line of its own and the remaining words stay together, so a brand with
+// spaces is not split.
+String attendantNameLines(String name) {
+  final cnpj = RegExp(r'^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$');
+  final lines = <String>[];
+  var words = <String>[];
+  for (final part in name.trim().split(RegExp(r'\s+'))) {
+    if (part.isEmpty) continue;
+    if (cnpj.hasMatch(part) || part.contains('@')) {
+      if (words.isNotEmpty) {
+        lines.add(words.join(' '));
+        words = <String>[];
+      }
+      lines.add(part);
+    } else {
+      words.add(part);
+    }
+  }
+  if (words.isNotEmpty) lines.add(words.join(' '));
+  return lines.join('\n');
 }
