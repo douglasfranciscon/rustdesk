@@ -598,7 +598,9 @@ class ServerModel with ChangeNotifier {
     });
     // Only do the hidden task when on Desktop.
     if (client.authorized && isDesktop) {
-      cmHiddenTimer = Timer(const Duration(seconds: 3), () {
+      // CUSTOM BRANDING: upstream minimised the card after 3 seconds, too short to
+      // read who connected. It stays 7 seconds before going to the taskbar.
+      cmHiddenTimer = Timer(const Duration(seconds: 7), () {
         if (!hideCm) windowManager.minimize();
         cmHiddenTimer = null;
       });
