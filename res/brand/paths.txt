@@ -1,5 +1,5 @@
 # Every path in this repository that carries the product's visual identity.
-# A brand folder (see docs/1_MarcasAlternativas.md) mirrors these paths; apply-brand.sh
+# A brand folder (see 1_MarcasAlternativas.md in the private repository) mirrors these paths; apply-brand.sh
 # warns about the ones a brand does not override, so nothing is forgotten by accident.
 #
 # Lines starting with # are comments. Paths are relative to the repository root.

@@ -14,7 +14,7 @@ name: Empacotar Windows com DLLs assinadas
 #   3. This workflow packs that signed folder into the portable .exe and the
 #      .msi, exactly as the build does, and hands them back as an artifact.
 #   4. Douglas signs the outer .exe/.msi as before.
-# See docs/2_AssinarDLLs.md. x86_64 only.
+# See 2_AssinarDLLs.md in the private repository. x86_64 only.
 
 on:
   workflow_dispatch:

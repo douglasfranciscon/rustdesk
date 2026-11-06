@@ -22,7 +22,7 @@
 // the app offers the download when its own date is older. Zero-padded, the
 // text sorts like the calendar, so no parsing; a value in any other shape, on
 // either side, offers nothing - a typo must not nag every client at once.
-// See docs/0_GerarInstalador.md.
+// See 0_GerarInstalador.md in the private repository.
 
 import 'dart:convert';
 

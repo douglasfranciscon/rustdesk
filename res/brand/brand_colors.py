@@ -15,7 +15,7 @@ hue and saturation and moving only the lightness:
     kBrandGrayBg  light surface tinted with the brand: lightness 0.94, saturation 0.15
 
 Prints NAME=0xAARRGGBB lines, which apply-brand.sh writes into
-flutter/lib/brand.dart. See docs/1_MarcasAlternativas.md.
+flutter/lib/brand.dart. See 1_MarcasAlternativas.md in the private repository.
 """
 import colorsys
 import re

@@ -1,6 +1,6 @@
 //! CUSTOM BRANDING: the machine registers itself in its brand's catalog on the API
 //! server (BR Suporte), so the attendants of that catalog connect to it without
-//! typing a password. See docs/3_CatalogoMaquinas.md.
+//! typing a password. See 3_CatalogoMaquinas.md in the private repository.
 //!
 //! What goes up is the permanent password's h1 - SHA256 of the password and this
 //! machine's salt - the very value a personal address book carries as `hash`. It

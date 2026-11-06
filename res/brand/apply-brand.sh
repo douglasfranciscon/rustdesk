@@ -19,7 +19,7 @@
 # at its root sets the "Website" links and an optional cor.txt the app's colours;
 # all of it lands in flutter/lib/brand.dart.
 #
-# See docs/1_MarcasAlternativas.md.
+# See 1_MarcasAlternativas.md in the private repository.
 
 set -euo pipefail
 

@@ -1,7 +1,7 @@
 # CUSTOM BRANDING: swap the icons/logos for another brand's before the build starts.
 #
 # The artwork itself lives in a private repository (this one is public), one folder
-# per brand, each mirroring this repository's layout. See docs/1_MarcasAlternativas.md.
+# per brand, each mirroring this repository's layout. See 1_MarcasAlternativas.md in the private repository.
 name: Apply brand
 description: Replace the product's icons and logos with a brand folder from the private assets repository.
 

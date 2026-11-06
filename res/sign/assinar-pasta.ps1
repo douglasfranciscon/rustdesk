@@ -1,6 +1,6 @@
 ﻿<#
 CUSTOM BRANDING: assina todos os .exe e .dll da pasta crua do build e gera o zip
-para a etapa 2 ("Empacotar Windows com DLLs assinadas"). Ver docs/2_AssinarDLLs.md.
+para a etapa 2 ("Empacotar Windows com DLLs assinadas"). Ver 2_AssinarDLLs.md no repositório privado.
 
 Uso (no computador com o token do certificado):
 

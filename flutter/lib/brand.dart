@@ -3,7 +3,7 @@
 // The values committed here are the default BR Remote build. When a build picks a
 // brand, res/brand/apply-brand.sh patches these lines before compiling, one by
 // one, so keep each constant on its own line in this shape.
-// See docs/1_MarcasAlternativas.md.
+// See 1_MarcasAlternativas.md in the private repository.
 
 /// The brand folder this build was made with, as typed in "Run workflow".
 /// Empty on the default build.
