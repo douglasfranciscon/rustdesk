@@ -15,7 +15,10 @@
 // The global message shows on every run. The licence warning does not: the
 // back says whether there is one and how many days are left, and the app paces
 // it - weekly from 30 days before expiry, daily in the last 7 (Douglas's call) -
-// remembering in a local option the day it last showed one.
+// remembering in a local option the day it last showed one. The download offer
+// shows once a day for a given cutoff (Douglas's call, 16/11/2026): the option
+// remembers the day and the cutoff it was shown for, so a new cutoff from the
+// back is offered at once, even on the same day.
 //
 // The version is a date, "YYYY.MM.DD" (build_info.dart), and the announced one
 // is a cutoff - the oldest build still acceptable, not the newest published:
@@ -48,6 +51,8 @@ const String _kLicenceDaysField = 'licenca_dias';
 // The local option (BRRemote_local.toml, per Windows user) holding the day,
 // "YYYY-MM-DD", the licence warning was last shown.
 const String _kLicenceShownKey = 'br-licence-notice-last';
+// The local option holding "YYYY-MM-DD|cutoff" of the last download offer.
+const String _kUpdateShownKey = 'br-update-notice-last';
 
 bool _checked = false;
 
@@ -77,7 +82,11 @@ Future<void> checkAppNotice() async {
   if (base.isNotEmpty &&
       _brVersionShape.hasMatch(version) &&
       _brVersionShape.hasMatch(kBrVersion) &&
-      kBrVersion.compareTo(version) < 0) {
+      kBrVersion.compareTo(version) < 0 &&
+      _updateDue(version)) {
+    // Recorded before showing, as with the licence warning.
+    await bind.mainSetLocalOption(
+        key: _kUpdateShownKey, value: '${_isoDay(_today())}|$version');
     final download = await _askDownload(version);
     if (download == true) {
       await launchUrl(windowsInstallerUrl(base),
@@ -139,6 +148,11 @@ bool _licenceDue(int daysLeft) {
   if (since < 0) return true; // a stored date in the future: the clock moved
   return since >= (daysLeft <= 7 ? 1 : 7);
 }
+
+/// False only when the offer for this same cutoff was already shown today.
+bool _updateDue(String cutoff) =>
+    bind.mainGetLocalOption(key: _kUpdateShownKey) !=
+    '${_isoDay(_today())}|$cutoff';
 
 DateTime _today() {
   final now = DateTime.now();
