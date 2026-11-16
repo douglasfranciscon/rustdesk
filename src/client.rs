@@ -407,7 +407,7 @@ impl Client {
         log::debug!("TCP connection establishment time used: {:?}", rtt);
         if socket.is_err() && !servers.is_empty() {
             log::info!("try the other servers: {:?}", servers);
-            for server in servers {
+            for server in &servers {
                 let server = check_port(server, RENDEZVOUS_PORT);
                 socket = connect_tcp(&*server, CONNECT_TIMEOUT).await;
                 if socket.is_ok() {
@@ -420,8 +420,15 @@ impl Client {
             crate::refresh_rendezvous_server();
         }
         log::info!("rendezvous server: {}", rendezvous_server);
+        // CUSTOM BRANDING: the servers not asked yet, for the fallback when the
+        // chosen one does not know the peer (see next_rendezvous_server).
+        let mut other_servers: Vec<String> = servers
+            .iter()
+            .map(|s| check_port(s, RENDEZVOUS_PORT))
+            .filter(|s| *s != check_port(&rendezvous_server, RENDEZVOUS_PORT))
+            .collect();
         let mut socket = socket?;
-        let my_addr = socket.local_addr();
+        let mut my_addr = socket.local_addr();
         let mut signed_id_pk = Vec::new();
         let mut relay_server = "".to_owned();
         let mut peer_addr = Config::get_any_listen_addr(true);
@@ -468,8 +475,8 @@ impl Client {
             (None, None)
         };
         let udp_nat_port = udp.1.map(|x| *x.lock().unwrap()).unwrap_or(0);
-        let punch_type = if udp_nat_port > 0 { "UDP" } else { "TCP" };
-        msg_out.set_punch_hole_request(PunchHoleRequest {
+        let mut punch_type = if udp_nat_port > 0 { "UDP" } else { "TCP" };
+        let punch_request = PunchHoleRequest {
             id: peer.to_owned(),
             token: token.to_owned(),
             nat_type: nat_type.into(),
@@ -480,8 +487,16 @@ impl Client {
             force_relay: interface.is_force_relay(),
             socket_addr_v6: ipv6.1.unwrap_or_default(),
             ..Default::default()
-        });
-        for i in 1..=3 {
+        };
+        msg_out.set_punch_hole_request(punch_request.clone());
+        // CUSTOM BRANDING: upstream's `for i in 1..=3`; a counter instead, reset
+        // when the fallback moves the attempts to another rendezvous server.
+        let mut i: u64 = 0;
+        loop {
+            i += 1;
+            if i > 3 {
+                break;
+            }
             log::info!(
                 "#{} {} punch attempt with {}, id: {}",
                 i,
@@ -499,6 +514,41 @@ impl Client {
                         if ph.socket_addr.is_empty() {
                             if !ph.other_failure.is_empty() {
                                 bail!(ph.other_failure);
+                            }
+                            // CUSTOM BRANDING: "not found" on this server is not "offline"
+                            // while another server may have the peer (a machine on the old
+                            // installer registers on one server only). Ask the next one
+                            // before giving up; the messages below are kept for when all
+                            // of them say the same.
+                            if matches!(
+                                ph.failure.enum_value(),
+                                Ok(punch_hole_response::Failure::ID_NOT_EXIST)
+                                    | Ok(punch_hole_response::Failure::OFFLINE)
+                            ) {
+                                if let Some((s, server)) =
+                                    Self::next_rendezvous_server(&mut other_servers, &key, &token)
+                                        .await
+                                {
+                                    log::info!(
+                                        "{} not found on {}, asking {}",
+                                        peer,
+                                        rendezvous_server,
+                                        server
+                                    );
+                                    socket = s;
+                                    rendezvous_server = server;
+                                    my_addr = socket.local_addr();
+                                    // The UDP socket was bound for the first server's NAT
+                                    // test; the second attempt is TCP only.
+                                    udp.0 = None;
+                                    msg_out.set_punch_hole_request(PunchHoleRequest {
+                                        udp_port: 0,
+                                        ..punch_request.clone()
+                                    });
+                                    punch_type = "TCP";
+                                    i = 0;
+                                    continue;
+                                }
                             }
                             match ph.failure.enum_value() {
                                 Ok(punch_hole_response::Failure::ID_NOT_EXIST) => {
@@ -639,6 +689,34 @@ impl Client {
             (feedback, rendezvous_server),
             true,
         ))
+    }
+
+    // CUSTOM BRANDING: redundancy between rendezvous servers (plan of 16/11/2026).
+    // Opens the next server of `others` that answers, secured like the first one
+    // when a key and a token are in use, and removes the ones tried. Short connect
+    // timeout, so a dead server costs the attendant 3 s, not the usual 18.
+    async fn next_rendezvous_server(
+        others: &mut Vec<String>,
+        key: &str,
+        token: &str,
+    ) -> Option<(Stream, String)> {
+        const FALLBACK_CONNECT_TIMEOUT: u64 = 3_000;
+        while !others.is_empty() {
+            let server = others.remove(0);
+            match connect_tcp(&*server, FALLBACK_CONNECT_TIMEOUT).await {
+                Ok(mut socket) => {
+                    if !key.is_empty() && !token.is_empty() {
+                        if let Err(e) = secure_tcp(&mut socket, key).await {
+                            log::warn!("Failed to secure tcp to {}: {}", server, e);
+                            continue;
+                        }
+                    }
+                    return Some((socket, server));
+                }
+                Err(e) => log::warn!("Rendezvous server {} not reachable: {}", server, e),
+            }
+        }
+        None
     }
 
     /// Connect to the peer.

@@ -16,7 +16,11 @@ use serde_json::{json, Value};
 
 const TIME_HEARTBEAT: Duration = Duration::from_secs(15);
 const UPLOAD_SYSINFO_TIMEOUT: Duration = Duration::from_secs(120);
-const TIME_CONN: Duration = Duration::from_secs(3);
+// CUSTOM BRANDING: upstream posts every 3 s while a connection is open, which
+// is also its loop tick. Here the tick is 5 s and a connection posts every 10 s
+// (Douglas's call, 16/11/2026, to spare the API); idle stays at 15 s.
+const TIME_TICK: Duration = Duration::from_secs(5);
+const TIME_CONN: Duration = Duration::from_secs(10);
 
 #[cfg(not(any(target_os = "ios")))]
 lazy_static::lazy_static! {
@@ -85,8 +89,8 @@ impl InfoUploaded {
 #[tokio::main(flavor = "current_thread")]
 async fn start_hbbs_sync_async() {
     let mut interval = crate::rustdesk_interval(tokio::time::interval_at(
-        Instant::now() + TIME_CONN,
-        TIME_CONN,
+        Instant::now() + TIME_TICK,
+        TIME_TICK,
     ));
     let mut last_sent: Option<Instant> = None;
     let mut info_uploaded = InfoUploaded::default();
@@ -233,7 +237,10 @@ async fn start_hbbs_sync_async() {
                         }
                     }
                 }
-                if conns.is_empty() && last_sent.map(|x| x.elapsed() < TIME_HEARTBEAT).unwrap_or(false) {
+                // Half a tick of slack, so a tick landing just short of the mark
+                // does not push the post to the next one.
+                let pace = if conns.is_empty() { TIME_HEARTBEAT } else { TIME_CONN };
+                if last_sent.map(|x| x.elapsed() + TIME_TICK / 2 < pace).unwrap_or(false) {
                     continue;
                 }
                 last_sent = Some(Instant::now());
@@ -246,6 +253,22 @@ async fn start_hbbs_sync_async() {
                 }
                 let modified_at = LocalConfig::get_option("strategy_timestamp").parse::<i64>().unwrap_or(0);
                 v["modified_at"] = json!(modified_at);
+                // CUSTOM BRANDING: which rendezvous server this machine would connect
+                // through, and the state of its registration on each one, so the API
+                // can tell "only on A" from "on both" when a connection fails. Field
+                // names and shapes fixed with the API on 16/11/2026: hosts lowercase
+                // without port; latency_ms an integer, null while that server is not
+                // answering (the mediator reports 0 or -1 then).
+                v["rendezvous"] = json!(host_only(&Config::get_rendezvous_server()));
+                v["servers"] = json!(crate::server_latencies()
+                    .iter()
+                    .map(|(host, latency)| {
+                        json!({
+                            "host": host_only(host),
+                            "latency_ms": if *latency > 0 { json!(latency / 1000) } else { Value::Null },
+                        })
+                    })
+                    .collect::<Vec<Value>>());
                 if let Ok(s) = crate::post_request(url.clone(), v.to_string(), "").await {
                     if let Ok(mut rsp) = serde_json::from_str::<HashMap::<&str, Value>>(&s) {
                         if rsp.remove("sysinfo").is_some() {
@@ -276,6 +299,16 @@ async fn start_hbbs_sync_async() {
             }
         }
     }
+}
+
+// "host:21116" -> "host", lowercase; an IPv6 literal keeps its brackets' content.
+fn host_only(server: &str) -> String {
+    let s = server.trim();
+    let s = match s.rsplit_once(':') {
+        Some((h, p)) if p.parse::<u16>().is_ok() => h,
+        _ => s,
+    };
+    s.trim_start_matches('[').trim_end_matches(']').to_lowercase()
 }
 
 fn heartbeat_url() -> String {

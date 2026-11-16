@@ -45,6 +45,16 @@ class UserModel {
       //  For login success, should clear network error
       networkError.value = '';
     });
+    // CUSTOM BRANDING: the login token has a sliding validity (7 days from the
+    // last contact with the API, plan of 16/11/2026) and the API renews it on
+    // currentUser. Besides the call at startup, ask every 6 h, so an attendant
+    // who never closes the app keeps a fresh token. Main window only: the other
+    // windows share the same stored token.
+    if (!isDesktop || desktopType == DesktopType.main) {
+      Timer.periodic(const Duration(hours: 6), (_) {
+        if (isLogin) refreshCurrentUser();
+      });
+    }
   }
 
   void refreshCurrentUser() async {
@@ -88,6 +98,9 @@ class UserModel {
         throw error;
       }
 
+      // CUSTOM BRANDING: a renewed token comes at the root of this answer (API
+      // of 16/11/2026); older APIs send none and nothing changes.
+      await _storeRenewedToken(data['access_token'], token);
       final user = UserPayload.fromJson(data);
       _parseAndUpdateUser(user);
     } catch (e) {
@@ -118,6 +131,16 @@ class UserModel {
       displayName.value = (userInfo['display_name'] ?? '').toString();
       avatar.value = (userInfo['avatar'] ?? '').toString();
     }
+  }
+
+  // CUSTOM BRANDING: store the token the API renewed, if it did. The next
+  // connection reads it from the local option (ui_session_interface.rs), and
+  // the address-book cache is re-saved because it is bound to the token.
+  Future<void> _storeRenewedToken(dynamic renewed, String current) async {
+    if (renewed is! String || renewed.isEmpty || renewed == current) return;
+    await bind.mainSetLocalOption(key: 'access_token', value: renewed);
+    gFFI.abModel.saveCache();
+    debugPrint('access token renewed by the API');
   }
 
   Future<void> reset({bool resetOther = false}) async {

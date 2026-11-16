@@ -43,6 +43,39 @@ fn connection_meta(
     }
 }
 
+// CUSTOM BRANDING: a copy of what each mediator reports to Config::update_latency,
+// for the heartbeat (hbbs_http/sync.rs) to tell the API on which rendezvous
+// servers this machine is registered and how fast each one answers. The table
+// hbb_common keeps (config::ONLINE) is private, and that submodule is not ours
+// to edit. Key: the host as the mediator names it (with port). Value: what
+// update_latency gets - the register round trip in microseconds, 0 after two
+// unanswered registers, -1 after four.
+lazy_static::lazy_static! {
+    static ref SERVER_LATENCY: std::sync::Mutex<std::collections::HashMap<String, i64>> =
+        Default::default();
+}
+
+fn report_latency(host: &str, latency: i64) {
+    SERVER_LATENCY
+        .lock()
+        .unwrap()
+        .insert(host.to_owned(), latency);
+    Config::update_latency(host, latency);
+}
+
+/// Each rendezvous server this side registers on, with the latest value the
+/// mediator reported for it (see SERVER_LATENCY). Sorted by host.
+pub fn server_latencies() -> Vec<(String, i64)> {
+    let mut v: Vec<(String, i64)> = SERVER_LATENCY
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(h, l)| (h.clone(), *l))
+        .collect();
+    v.sort();
+    v
+}
+
 lazy_static::lazy_static! {
     static ref SOLVING_PK_MISMATCH: Mutex<String> = Default::default();
     static ref LAST_MSG: Mutex<(SocketAddr, Instant)> = Mutex::new((SocketAddr::new([0; 4].into(), 0), Instant::now()));
@@ -158,6 +191,8 @@ impl RendezvousMediator {
                 let mut futs = Vec::new();
                 let servers = Config::get_rendezvous_servers();
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
+                // CUSTOM BRANDING: the list may have changed; forget servers no longer in it.
+                SERVER_LATENCY.lock().unwrap().clear();
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
                 for host in servers.clone() {
                     let server = server.clone();
@@ -256,7 +291,7 @@ impl RendezvousMediator {
                     n = 3000;
                 }
                 if (latency - old_latency).abs() > n || old_latency <= 0 {
-                    Config::update_latency(&host, latency);
+                    report_latency(&host, latency);
                     log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
                     old_latency = latency;
                 }
@@ -303,7 +338,7 @@ impl RendezvousMediator {
                         if timeout {
                             fails += 1;
                             if fails >= MAX_FAILS2 {
-                                Config::update_latency(&host, -1);
+                                report_latency(&host, -1);
                                 old_latency = 0;
                                 if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                                     // in some case of network reconnect (dial IP network),
@@ -316,7 +351,7 @@ impl RendezvousMediator {
                                     last_dns_check = Instant::now();
                                 }
                             } else if fails >= MAX_FAILS1 {
-                                Config::update_latency(&host, 0);
+                                report_latency(&host, 0);
                                 old_latency = 0;
                             }
                         }
@@ -440,7 +475,7 @@ impl RendezvousMediator {
                 let latency = last_register_sent
                     .map(|x| x.elapsed().as_micros() as i64)
                     .unwrap_or(0);
-                Config::update_latency(&host, latency);
+                report_latency(&host, latency);
                 log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
             };
             select! {

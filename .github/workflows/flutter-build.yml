@@ -142,6 +142,13 @@ jobs:
         shell: bash
         run: |
           sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sed -i 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
           # access from this fork), so APP_NAME can't be committed there directly - patch it
@@ -484,6 +491,13 @@ jobs:
         shell: bash
         run: |
           sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sed -i 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
           # access from this fork), so APP_NAME can't be committed there directly - patch it
@@ -836,6 +850,13 @@ jobs:
         run: |
           sedi() { local f="${@: -1}"; sed -i.brbak "$@" && rm -f "$f.brbak"; }
           sedi 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sedi 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sedi 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # APP_NAME lives in the no-push-access hbb_common submodule, so it is patched here
           # (see the Windows job). It names the binary, the service, the install folder, the
@@ -1175,6 +1196,13 @@ jobs:
         shell: bash
         run: |
           sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sed -i 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
           # access from this fork), so APP_NAME can't be committed there directly - patch it
@@ -1494,6 +1522,13 @@ jobs:
         shell: bash
         run: |
           sed -i 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sed -i 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sed -i 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # libs/hbb_common is a submodule pointing at upstream rustdesk/hbb_common (no push
           # access from this fork), so APP_NAME can't be committed there directly - patch it
@@ -1712,6 +1747,13 @@ jobs:
         run: |
           sedi() { local f="${@: -1}"; sed -i.brbak "$@" && rm -f "$f.brbak"; }
           sedi 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sedi 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sedi 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # APP_NAME lives in the no-push-access hbb_common submodule, so it is patched here
           # (see the Windows job). It names the binary, the service, the install folder, the
@@ -2073,6 +2115,13 @@ jobs:
         run: |
           sedi() { local f="${@: -1}"; sed -i.brbak "$@" && rm -f "$f.brbak"; }
           sedi 's#RENDEZVOUS_SERVERS: &\[&str\] = &\["rs-ny.rustdesk.com"\];#RENDEZVOUS_SERVERS: \&[\&str] = \&["${{ secrets.RENDEZVOUS_SERVER }}"];#' libs/hbb_common/src/config.rs
+          # CUSTOM BRANDING: a second rendezvous server, for redundancy, when the optional
+          # secret RENDEZVOUS_SERVER_B is set (16/11/2026). The app registers on every
+          # server of the list and, asked for a peer one server does not know, tries the
+          # others (src/client.rs). Without the secret the list stays with one host.
+          if [ -n "${{ secrets.RENDEZVOUS_SERVER_B }}" ]; then
+            sedi 's#\["${{ secrets.RENDEZVOUS_SERVER }}"\];#["${{ secrets.RENDEZVOUS_SERVER }}", "${{ secrets.RENDEZVOUS_SERVER_B }}"];#' libs/hbb_common/src/config.rs
+          fi
           sedi 's#RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";#RS_PUB_KEY: \&str = "${{ secrets.RS_PUB_KEY }}";#' libs/hbb_common/src/config.rs
           # APP_NAME lives in the no-push-access hbb_common submodule, so it is patched here
           # (see the Windows job). It names the binary, the service, the install folder, the

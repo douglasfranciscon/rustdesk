@@ -2357,19 +2357,10 @@ class _AboutState extends State<_About> {
     return futureBuilder(future: () async {
       final license = await bind.mainGetLicense();
       final version = await bind.mainGetVersion();
-      final buildDate = await bind.mainGetBuildDate();
-      final fingerprint = await bind.mainGetFingerprint();
-      return {
-        'license': license,
-        'version': version,
-        'buildDate': buildDate,
-        'fingerprint': fingerprint
-      };
+      return {'license': license, 'version': version};
     }(), hasData: (data) {
       final license = data['license'].toString();
       final version = data['version'].toString();
-      final buildDate = data['buildDate'].toString();
-      final fingerprint = data['fingerprint'].toString();
       const linkStyle = TextStyle(decoration: TextDecoration.underline);
       final scrollController = ScrollController();
       return SingleChildScrollView(
@@ -2394,19 +2385,16 @@ class _AboutState extends State<_About> {
                   errorBuilder: (ctx, error, stackTrace) => loadIcon(64),
                 ),
               ).marginSymmetric(vertical: 4.0),
-              // CUSTOM BRANDING: plus the BR version (the build date) that
-              // the new-version notice compares - the one to check in support.
+              // CUSTOM BRANDING: the version shown is the BR one (the build
+              // date), the one the new-version notice compares and the one to
+              // ask for in support; upstream's number only on an unstamped
+              // (local) build. Upstream's build date and fingerprint lines are
+              // left out: the date repeats the version and the fingerprint
+              // means nothing to the person at the machine.
               SelectionArea(
-                  child: Text('${translate('Version')}: $version'
-                          '${kBrVersion.isEmpty ? '' : ' ($kBrVersion)'}')
+                  child: Text('${translate('Version')}: '
+                          '${kBrVersion.isEmpty ? version : kBrVersion}')
                       .marginSymmetric(vertical: 4.0)),
-              SelectionArea(
-                  child: Text('${translate('Build Date')}: $buildDate')
-                      .marginSymmetric(vertical: 4.0)),
-              if (!isWeb)
-                SelectionArea(
-                    child: Text('${translate('Fingerprint')}: $fingerprint')
-                        .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
                     launchUrlString(kBrandWebsiteUrl);

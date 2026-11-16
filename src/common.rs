@@ -2192,6 +2192,24 @@ pub fn get_dst_align_rgba() -> usize {
     1
 }
 
+// CUSTOM BRANDING: options fixed for every build, whatever custom.txt says.
+// The product has one server, set at build time, and the person at the
+// machine must neither see it nor change it: this hides the Network tab and
+// every "ID/Relay Server" entry (server, key, proxy, websocket) on all
+// platforms, the Sciter UI included. Called right after the custom client
+// config is loaded, from both entry points (core_main and the Flutter FFI).
+pub fn apply_brand_builtin_settings() {
+    let mut builtin = config::BUILTIN_SETTINGS.write().unwrap();
+    for key in [
+        keys::OPTION_HIDE_NETWORK_SETTINGS,
+        keys::OPTION_HIDE_SERVER_SETTINGS,
+        keys::OPTION_HIDE_PROXY_SETTINGS,
+        keys::OPTION_HIDE_WEBSOCKET_SETTINGS,
+    ] {
+        builtin.insert(key.to_owned(), "Y".to_owned());
+    }
+}
+
 pub fn read_custom_client(config: &str) {
     let Ok(data) = decode64(config) else {
         log::error!("Failed to decode custom client config");

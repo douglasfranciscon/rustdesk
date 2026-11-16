@@ -601,6 +601,14 @@ class AbModel {
 // #endregion
 
 // #region cache
+  // CUSTOM BRANDING: the cache is bound to the login token (loadCache below, and
+  // the Rust side's personal-ab password lookup). UserModel calls this when the
+  // API renews the token, so the cache follows it. Before the first pull there
+  // is nothing worth writing: the pull that follows saves it with the new token.
+  void saveCache() {
+    if (listInitialized && current.initialized) _saveCache();
+  }
+
   _saveCache() {
     try {
       var ab_entries = _serializeCache();
