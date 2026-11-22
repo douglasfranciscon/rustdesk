@@ -1038,7 +1038,30 @@ pub fn get_full_name() -> String {
 }
 
 pub fn is_setup(name: &str) -> bool {
-    !config::is_disable_installation() && name.to_lowercase().ends_with("install.exe")
+    !config::is_disable_installation()
+        && without_copy_number(name).ends_with("install.exe")
+}
+
+/// CUSTOM BRANDING: a second download of the same file is saved as "x-install (2).exe"
+/// (Chrome, Edge) or "x-install(2).exe" (Firefox), which no longer ends in
+/// "install.exe", so the installer opened the app instead of installing (22/11/2026).
+/// Lowercases `name` and drops that "(n)" before ".exe". Keep in step with the same
+/// function in libs/portable/src/main.rs.
+fn without_copy_number(name: &str) -> String {
+    let lower = name.to_lowercase();
+    let Some(stem) = lower.strip_suffix(".exe") else {
+        return lower;
+    };
+    let Some(open) = stem.rfind('(') else {
+        return lower;
+    };
+    let Some(digits) = stem[open + 1..].strip_suffix(')') else {
+        return lower;
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return lower;
+    }
+    format!("{}.exe", stem[..open].trim_end())
 }
 
 pub fn get_custom_rendezvous_server(custom: String) -> String {

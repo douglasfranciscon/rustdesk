@@ -178,6 +178,28 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
     }
 }
 
+/// CUSTOM BRANDING: a second download of the same file is saved as "x-install (2).exe"
+/// (Chrome, Edge) or "x-install(2).exe" (Firefox), which no longer ends in
+/// "install.exe", so the installer opened the app instead of installing (22/11/2026).
+/// Lowercases `name` and drops that "(n)" before ".exe". Keep in step with the same
+/// function in src/common.rs (is_setup).
+fn without_copy_number(name: &str) -> String {
+    let lower = name.to_lowercase();
+    let Some(stem) = lower.strip_suffix(".exe") else {
+        return lower;
+    };
+    let Some(open) = stem.rfind('(') else {
+        return lower;
+    };
+    let Some(digits) = stem[open + 1..].strip_suffix(')') else {
+        return lower;
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return lower;
+    }
+    format!("{}.exe", stem[..open].trim_end())
+}
+
 fn main() {
     let mut args = Vec::new();
     let mut arg_exe = Default::default();
@@ -190,7 +212,7 @@ fn main() {
         }
         i += 1;
     }
-    let click_setup = args.is_empty() && arg_exe.to_lowercase().ends_with("install.exe");
+    let click_setup = args.is_empty() && without_copy_number(&arg_exe).ends_with("install.exe");
     #[cfg(windows)]
     let quick_support = args.is_empty() && win::is_quick_support_exe(&arg_exe);
     #[cfg(not(windows))]
