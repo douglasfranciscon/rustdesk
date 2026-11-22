@@ -248,7 +248,22 @@ fn collect_status() -> Value {
         "discos".to_owned(),
         Value::Array(disks.into_iter().map(|(_, d)| d).collect()),
     );
+    if let Some(list) = physical_disks_health() {
+        status.insert("discos_fisicos".to_owned(), Value::Array(list));
+    }
     Value::Object(status)
+}
+
+/// The physical disks' health, in the status because temperature and power-on hours
+/// change all the time and would make the daily inventory go up every day.
+#[cfg(windows)]
+fn physical_disks_health() -> Option<Vec<Value>> {
+    win::disk_health()
+}
+
+#[cfg(not(windows))]
+fn physical_disks_health() -> Option<Vec<Value>> {
+    None
 }
 
 /// "C:\" -> "C:" on Windows; elsewhere the mount point as it is.
@@ -470,6 +485,78 @@ mod win {
         hw
     }
 
+    /// Health of each physical disk, for the status (22/11/2026, Douglas's call):
+    /// Windows' own verdict (MSFT_PhysicalDisk.HealthStatus) and, where the disk reports
+    /// them, its reliability counters - temperature, wear, power-on hours, errors. The
+    /// counters need an administrator, which the service is. A card reader with no card
+    /// shows up as a disk of size 0 and is left out.
+    pub fn disk_health() -> Option<Vec<Value>> {
+        let _com = wbem::Com::init();
+        let wmi = wbem::Wbem::new();
+        let wmi = wmi.as_ref();
+        let disks = rows(
+            wmi,
+            STORAGE,
+            "SELECT DeviceId, FriendlyName, HealthStatus, Size FROM MSFT_PhysicalDisk",
+            &["DeviceId", "FriendlyName", "HealthStatus", "Size"],
+        )?;
+        let counters = rows(
+            wmi,
+            STORAGE,
+            "SELECT DeviceId, Temperature, Wear, PowerOnHours, ReadErrorsTotal, WriteErrorsTotal \
+             FROM MSFT_StorageReliabilityCounter",
+            &[
+                "DeviceId",
+                "Temperature",
+                "Wear",
+                "PowerOnHours",
+                "ReadErrorsTotal",
+                "WriteErrorsTotal",
+            ],
+        )
+        .unwrap_or_default();
+        Some(
+            disks
+                .iter()
+                .filter(|d| d.number("Size").unwrap_or(0) > 0)
+                .map(|d| {
+                    let mut m = Map::new();
+                    put(&mut m, "modelo", d.text("FriendlyName"));
+                    // HealthStatus: 0 healthy, 1 warning, 2 unhealthy, 5 unknown.
+                    let saude = match d.number("HealthStatus") {
+                        Some(0) => Some("saudavel"),
+                        Some(1) => Some("atencao"),
+                        Some(2) => Some("falha"),
+                        _ => None,
+                    };
+                    put(&mut m, "saude", saude.map(str::to_owned));
+                    let device = d.text("DeviceId");
+                    if let Some(c) = counters
+                        .iter()
+                        .find(|c| device.is_some() && c.text("DeviceId") == device)
+                    {
+                        if let Some(t) = c.number("Temperature").filter(|t| *t > 0 && *t < 150) {
+                            m.insert("temperatura_c".to_owned(), json!(t));
+                        }
+                        if let Some(w) = c.number("Wear").filter(|w| *w <= 100) {
+                            m.insert("desgaste_pct".to_owned(), json!(w));
+                        }
+                        for (prop, key) in [
+                            ("PowerOnHours", "horas_ligado"),
+                            ("ReadErrorsTotal", "erros_leitura"),
+                            ("WriteErrorsTotal", "erros_escrita"),
+                        ] {
+                            if let Some(v) = c.number(prop) {
+                                m.insert(key.to_owned(), json!(v));
+                            }
+                        }
+                    }
+                    Value::Object(m)
+                })
+                .collect(),
+        )
+    }
+
     fn physical_disks(wmi: Option<&wbem::Wbem>) -> Option<Vec<Value>> {
         if let Some(list) = rows(
             wmi,
@@ -479,6 +566,8 @@ mod win {
         ) {
             return Some(
                 list.iter()
+                    // A card reader with no card is a disk of size 0.
+                    .filter(|r| r.number("Size").unwrap_or(0) > 0)
                     .map(|r| {
                         let mut d = Map::new();
                         put(&mut d, "modelo", r.text("FriendlyName"));
