@@ -2,7 +2,7 @@ name: Empacotar Windows com DLLs assinadas
 
 # CUSTOM BRANDING: the second half of a two-stage Windows release, for when the
 # DLLs inside the installer must be signed too (Windows 11 Smart App Control
-# refuses unsigned DLLs, and signing only the outer .exe/.msi leaves the ones
+# refuses unsigned DLLs, and signing only the outer .exe leaves the ones
 # packed inside it unsigned).
 #
 # The certificate lives on a hardware token, out of CI's reach, so signing
@@ -11,9 +11,10 @@ name: Empacotar Windows com DLLs assinadas
 #      the artifact rustdesk-unsigned-windows-x86_64.
 #   2. Douglas signs every .exe/.dll in it (res/sign/assinar-pasta.ps1) and
 #      attaches the zip to the release the build published to.
-#   3. This workflow packs that signed folder into the portable .exe and the
-#      .msi, exactly as the build does, and hands them back as an artifact.
-#   4. Douglas signs the outer .exe/.msi as before.
+#   3. This workflow packs that signed folder into the portable .exe, exactly
+#      as the build does, and hands it back as an artifact (no .msi since
+#      22/11/2026).
+#   4. Douglas signs the outer .exe as before.
 # See 2_AssinarDLLs.md in the private repository. x86_64 only.
 
 on:
@@ -132,21 +133,10 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/BRRemote-$VERSION.$BUILD-x86_64.exe"
 
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
-
-      - name: Build msi
-        env:
-          BUILD: ${{ inputs.build }}
-        run: |
-          pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk --app-name "BRRemote" --revision-version $env:BUILD
-          nuget restore msi.sln
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
-          $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
-          mv $msi.FullName "../../SignOutput/BRRemote-$env:VERSION.$env:BUILD-x86_64.msi"
-          popd
-          Get-ChildItem ./SignOutput | Format-Table Name, Length
+      # CUSTOM BRANDING: no MSI since 22/11/2026 - only the .exe is published (see
+      # flutter-build.yml).
+      - name: List the packed files
+        run: Get-ChildItem ./SignOutput | Format-Table Name, Length
 
       - name: Upload the packed files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
