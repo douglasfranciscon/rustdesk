@@ -132,6 +132,14 @@ windows = { version = "0.61", features = [
     "Win32_System_Pipes",
     "Win32_System_Threading",
     "Win32_UI_Shell",
+    # CUSTOM BRANDING: the machine's inventory (WMI) and the portal's alerts shown in
+    # each logged-on session (WTSSendMessageW) - src/hbbs_http/inventory.rs, alerts.rs.
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Variant",
+    "Win32_System_Wmi",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 winreg = "0.11"
 windows-service = "0.6"

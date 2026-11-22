@@ -97,6 +97,10 @@ async fn start_hbbs_sync_async() {
     let mut sysinfo_ver = "".to_owned();
     // CUSTOM BRANDING: registration in the brand's machine catalog (catalog.rs).
     let mut catalog = super::catalog::Catalog::default();
+    // CUSTOM BRANDING: status and inventory (inventory.rs) and the portal's alerts
+    // (alerts.rs).
+    let mut inventory = super::inventory::Inventory::default();
+    let mut alerts = super::alerts::Alerts::default();
     loop {
         tokio::select! {
             _ = interval.tick() => {
@@ -112,6 +116,10 @@ async fn start_hbbs_sync_async() {
                 // CUSTOM BRANDING: keep this machine registered in its brand's catalog.
                 // Self-throttled (a look a minute, a POST only when something changed).
                 catalog.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                // CUSTOM BRANDING: status every 3 h, inventory when it changed, and the
+                // "seen" of alerts already shown. Each one self-throttled.
+                inventory.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                alerts.flush(url.trim_end_matches("/api/heartbeat"), &id).await;
                 let conns = Connection::alive_conns();
                 if info_uploaded.uploaded && (url != info_uploaded.url || id != info_uploaded.id) {
                     info_uploaded.uploaded = false;
@@ -293,6 +301,10 @@ async fn start_hbbs_sync_async() {
                                 log::info!("strategy updated");
                                 handle_config_options(strategy.config_options);
                             }
+                        }
+                        // CUSTOM BRANDING: alerts from the portal, at the root of the reply.
+                        if let Some(list) = rsp.remove("alertas") {
+                            alerts.handle(list);
                         }
                     }
                 }

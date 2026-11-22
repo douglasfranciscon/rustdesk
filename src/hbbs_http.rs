@@ -4,11 +4,17 @@ use serde_json::{Map, Value};
 
 #[cfg(feature = "flutter")]
 pub mod account;
+// CUSTOM BRANDING: alerts from the portal shown on the machine's screen.
+#[cfg(not(target_os = "ios"))]
+pub mod alerts;
 // CUSTOM BRANDING: the machine registers itself in its brand's catalog.
 #[cfg(not(target_os = "ios"))]
 pub mod catalog;
 pub mod downloader;
 mod http_client;
+// CUSTOM BRANDING: the machine's status and inventory, shown in the portal.
+#[cfg(not(target_os = "ios"))]
+pub mod inventory;
 pub mod record_upload;
 pub mod sync;
 pub use http_client::{
