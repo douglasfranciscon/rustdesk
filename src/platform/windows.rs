@@ -1555,7 +1555,17 @@ fn get_after_install(
 }
 
 pub fn install_me(options: &str, path: String, silent: bool, debug: bool) -> ResultType<()> {
-    let uninstall_str = get_uninstall(false, false);
+    // CUSTOM BRANDING: over an MSI installation, remove it quietly. get_uninstall hands
+    // back the MSI's interactive UninstallString, whose "uninstall?" prompt, when not
+    // confirmed, left the old copy running and the copy below failing on it.
+    let uninstall_str = match get_msi_quiet_uninstall() {
+        Some(msi) => format!(
+            "{}\n{} REBOOT=ReallySuppress /norestart",
+            get_before_uninstall(false),
+            msi
+        ),
+        None => get_uninstall(false, false),
+    };
     let mut path = path.trim_end_matches('\\').to_owned();
     let (subkey, _path, start_menu, exe) = get_default_install_info();
     let mut exe = exe;
@@ -1832,6 +1842,29 @@ fn get_uninstall(kill_self: bool, uninstall_printer: bool) -> String {
         uninstall_amyuni_idd=get_uninstall_amyuni_idd(),
         app_name = crate::get_app_name(),
     )
+}
+
+/// CUSTOM BRANDING: the MSI's quiet uninstall command when the installed copy came
+/// from the MSI, None otherwise. The MSI registers QuietUninstallString ("MsiExec.exe
+/// /qn /X {...}"); an older one without it gets /qn added to its UninstallString.
+///
+/// Only the .exe is published since 17/11/2026, so this is how machines still on an
+/// older MSI move over. The MSI's uninstall ends every BRRemote.exe whose command line
+/// lacks "--install" (TerminateProcesses in res/msi). The download is served as
+/// ...-install.exe, which runs with --install and is spared; started any other way, the
+/// installer's window closes early, but the install script runs in its own elevated
+/// cmd and goes on to the end, so the copy is installed and its service started.
+fn get_msi_quiet_uninstall() -> Option<String> {
+    let uninstall = get_reg("UninstallString");
+    if !uninstall.to_lowercase().contains("msiexec.exe") {
+        return None;
+    }
+    let quiet = get_reg("QuietUninstallString");
+    if quiet.to_lowercase().contains("msiexec.exe") {
+        Some(quiet)
+    } else {
+        Some(format!("{uninstall} /qn"))
+    }
 }
 
 pub fn uninstall_me(kill_self: bool) -> ResultType<()> {
