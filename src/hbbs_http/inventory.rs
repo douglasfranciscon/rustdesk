@@ -1,5 +1,6 @@
 //! CUSTOM BRANDING: the machine's status (disks, RAM, last boot) every 3 hours and its
-//! inventory (hardware, Windows, antivirus, network, installed programs) once a day,
+//! inventory (hardware, Windows, antivirus, network, installed programs, ICP-Brasil
+//! certificates) once a day,
 //! posted to <api>/api/maquina-inventario so the portal can show them to the
 //! attendants of the machine's catalog. Contract fixed with the apiGDe and BR GDe
 //! tabs on 22/11/2026 (Docs/contrato-api.md in the apiGDe):
@@ -342,6 +343,22 @@ mod win {
     const MAX_PROGRAMS: usize = 2000;
     /// The server takes texts of up to 200 characters.
     const MAX_TEXT: usize = 200;
+    const MAX_CERTIFICATES: usize = 50;
+    const PROFILE_LIST: &str = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList";
+    /// The personal ("My") certificate stores: the machine's and a user's in the
+    /// registry, and a user's files in the profile.
+    const MACHINE_STORE: &str = "SOFTWARE\\Microsoft\\SystemCertificates\\MY\\Certificates";
+    const USER_STORE: &str = "Software\\Microsoft\\SystemCertificates\\My\\Certificates";
+    const USER_STORE_FOLDER: &str = "AppData\\Roaming\\Microsoft\\SystemCertificates\\My\\Certificates";
+    /// Store entry properties: the certificate (DER) and its SHA-1.
+    const CERT_PROP_DER: u32 = 32;
+    const CERT_PROP_SHA1: u32 = 3;
+    /// DER encodings (after the 06 tag and length) of 2.16.76.1.2 (ICP-Brasil
+    /// certificate policies), 2.16.76.1.3.3 (the company's CNPJ, in an e-CNPJ) and
+    /// 2.16.76.1.3.1 (the holder's birth date and CPF, in an e-CPF).
+    const ICP_POLICY: &[u8] = &[0x60, 0x4c, 0x01, 0x02];
+    const ICP_CNPJ: &[u8] = &[0x60, 0x4c, 0x01, 0x03, 0x03];
+    const ICP_PERSON: &[u8] = &[0x60, 0x4c, 0x01, 0x03, 0x01];
     /// What manufacturers leave in the firmware fields they did not fill in.
     const PLACEHOLDERS: &[&str] = &[
         "to be filled by o.e.m.",
@@ -376,6 +393,11 @@ mod win {
         }
         if let Some(list) = programs() {
             inventory.insert("programas".to_owned(), Value::Array(list));
+        }
+        let (certificates, truncated) = certificates();
+        inventory.insert("certificados".to_owned(), Value::Array(certificates));
+        if truncated {
+            inventory.insert("certificados_truncado".to_owned(), json!(true));
         }
         Value::Object(inventory)
     }
@@ -827,6 +849,351 @@ mod win {
             }
         }
         read_any.then(|| found.into_values().take(MAX_PROGRAMS).collect())
+    }
+
+    /// The ICP-Brasil certificates (e-CNPJ, e-CPF) in the machine's personal store and
+    /// in each Windows user's, sorted by expiry, at most MAX_CERTIFICATES; the bool
+    /// says the list was cut (Douglas, 23/11/2026, for the portal's expiry list).
+    ///
+    /// Read straight from where Windows keeps those stores, so the service needs no
+    /// user's session: the registry for the machine and for a user whose hive is
+    /// loaded, and the files in each profile. Every entry there is the same list of
+    /// properties, the certificate itself (DER) being property 32 and its SHA-1
+    /// property 3 (measured 23/11/2026). ICP-Brasil = a certificate policy under
+    /// 2.16.76.1.2 (2.16.76.1.2.1.x is an A1, 2.16.76.1.2.3.x an A3).
+    fn certificates() -> (Vec<Value>, bool) {
+        let mut found: BTreeMap<(String, String), (i64, Value)> = BTreeMap::new();
+        let add = |found: &mut BTreeMap<(String, String), (i64, Value)>,
+                       blob: &[u8],
+                       name: &str,
+                       user: Option<&str>| {
+            if let Some((expiry, mut cert)) = icp_certificate(blob, name) {
+                let thumbprint = cert["thumbprint"].as_str().unwrap_or_default().to_owned();
+                match user {
+                    Some(user) => {
+                        cert["repositorio"] = json!("usuario");
+                        cert["usuario"] = json!(user);
+                    }
+                    None => cert["repositorio"] = json!("maquina"),
+                }
+                found
+                    .entry((thumbprint, user.unwrap_or_default().to_owned()))
+                    .or_insert((expiry, cert));
+            }
+        };
+
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        for (blob, name) in registry_store(&hklm, MACHINE_STORE) {
+            add(&mut found, blob.as_slice(), name.as_str(), None);
+        }
+        let hku = RegKey::predef(HKEY_USERS);
+        if let Ok(profiles) = hklm.open_subkey(PROFILE_LIST) {
+            for sid in profiles.enum_keys().flatten() {
+                // Local and domain users (S-1-5-21-…) and Microsoft Entra ones
+                // (S-1-12-1-…); not SYSTEM, LocalService, NetworkService.
+                if !sid.starts_with("S-1-5-21-") && !sid.starts_with("S-1-12-1-") {
+                    continue;
+                }
+                let Some(path) = profiles
+                    .open_subkey(&sid)
+                    .ok()
+                    .and_then(|k| k.get_value::<String, _>("ProfileImagePath").ok())
+                    .map(|p| expand_env(&p))
+                else {
+                    continue;
+                };
+                let profile = std::path::Path::new(&path);
+                let Some(user) = profile
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .filter(|n| !n.is_empty())
+                else {
+                    continue;
+                };
+                if let Ok(files) = std::fs::read_dir(profile.join(USER_STORE_FOLDER)) {
+                    for file in files.flatten() {
+                        if let Ok(blob) = std::fs::read(file.path()) {
+                            let name = file.file_name().to_string_lossy().into_owned();
+                            add(&mut found, blob.as_slice(), name.as_str(), Some(user.as_str()));
+                        }
+                    }
+                }
+                if let Ok(hive) = hku.open_subkey(&sid) {
+                    for (blob, name) in registry_store(&hive, USER_STORE) {
+                        add(&mut found, blob.as_slice(), name.as_str(), Some(user.as_str()));
+                    }
+                }
+            }
+        }
+
+        // When there are too many, the ones left out are those that expired longest
+        // ago (an accountant's machine piles up years of clients' certificates): keep
+        // the MAX_CERTIFICATES that expire last, ties by thumbprint and user so the
+        // cut is the same every day, then send them soonest expiry first.
+        let mut list: Vec<((String, String), (i64, Value))> = found.into_iter().collect();
+        list.sort_by(|(ka, (ea, _)), (kb, (eb, _))| eb.cmp(ea).then_with(|| ka.cmp(kb)));
+        let truncated = list.len() > MAX_CERTIFICATES;
+        list.truncate(MAX_CERTIFICATES);
+        list.sort_by(|(ka, (ea, _)), (kb, (eb, _))| ea.cmp(eb).then_with(|| ka.cmp(kb)));
+        (list.into_iter().map(|(_, (_, cert))| cert).collect(), truncated)
+    }
+
+    /// The entries of a registry certificate store: each subkey's "Blob", with the
+    /// subkey's name (the thumbprint).
+    fn registry_store(root: &RegKey, path: &str) -> Vec<(Vec<u8>, String)> {
+        let Ok(store) = root.open_subkey(path) else {
+            return Vec::new();
+        };
+        store
+            .enum_keys()
+            .flatten()
+            .filter_map(|name| {
+                let value = store.open_subkey(&name).ok()?.get_raw_value("Blob").ok()?;
+                Some((value.bytes, name))
+            })
+            .collect()
+    }
+
+    /// "%SystemDrive%\Users\x" -> "C:\Users\x"; a variable that is not set stays.
+    fn expand_env(text: &str) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(start) = rest.find('%') {
+            let Some(len) = rest[start + 1..].find('%') else {
+                break;
+            };
+            let name = &rest[start + 1..start + 1 + len];
+            out.push_str(&rest[..start]);
+            match std::env::var(name) {
+                Ok(value) if !name.is_empty() => out.push_str(&value),
+                _ => out.push_str(&rest[start..start + len + 2]),
+            }
+            rest = &rest[start + len + 2..];
+        }
+        out.push_str(rest);
+        out
+    }
+
+    /// One store entry as the contract's object, with its expiry (unix seconds) to
+    /// sort by; None when it is not an ICP-Brasil certificate or does not parse.
+    /// `name` is the entry's name in the store, the thumbprint when property 3 is
+    /// missing.
+    fn icp_certificate(blob: &[u8], name: &str) -> Option<(i64, Value)> {
+        let encoded = store_property(blob, CERT_PROP_DER)?;
+        let cert = der::parse(encoded)?;
+        let (oid_len, at) = der::find_oid(cert.extensions, ICP_POLICY)?;
+        let level = (oid_len > ICP_POLICY.len())
+            .then(|| cert.extensions.get(at + ICP_POLICY.len()).copied())
+            .flatten();
+
+        let mut c = Map::new();
+        let cn = cert.subject_cn.as_deref().unwrap_or_default();
+        // The holder's CN ends in ":<CNPJ>" or ":<CPF>"; the number goes in its own
+        // field (the CPF masked) and never in the name.
+        let (holder, number) = match cn.rsplit_once(':') {
+            Some((holder, digits))
+                if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) =>
+            {
+                (holder.trim(), Some(digits))
+            }
+            _ => (cn.trim(), None),
+        };
+        put(&mut c, "titular", clip(holder));
+        if der::find_oid(cert.extensions, ICP_CNPJ).is_some() {
+            c.insert("tipo".to_owned(), json!("e-CNPJ"));
+            let cnpj = der::other_name(cert.extensions, ICP_CNPJ)
+                .map(|v| digits_of(&v))
+                .filter(|d| d.len() == 14)
+                .or_else(|| number.map(str::to_owned).filter(|d| d.len() == 14));
+            put(&mut c, "cnpj", cnpj);
+        } else if der::find_oid(cert.extensions, ICP_PERSON).is_some() {
+            c.insert("tipo".to_owned(), json!("e-CPF"));
+            // Birth date (8), then the CPF (11).
+            let cpf = der::other_name(cert.extensions, ICP_PERSON)
+                .and_then(|v| v.get(8..19).map(str::to_owned))
+                .filter(|d| d.bytes().all(|b| b.is_ascii_digit()) && d.bytes().any(|b| b != b'0'))
+                .or_else(|| number.map(str::to_owned).filter(|d| d.len() == 11));
+            put(
+                &mut c,
+                "cpf",
+                cpf.map(|d| format!("{}.***.***-{}", &d[..3], &d[9..])),
+            );
+        }
+        if let Some(level @ 1..=4) = level {
+            c.insert("modelo".to_owned(), json!(format!("A{}", level)));
+        }
+        put(&mut c, "emissor", cert.issuer_cn.as_deref().and_then(clip));
+        put(&mut c, "valido_desde", super::iso_of_unix(cert.not_before));
+        put(&mut c, "valido_ate", super::iso_of_unix(cert.not_after));
+        let thumbprint = store_property(blob, CERT_PROP_SHA1)
+            .filter(|h| h.len() == 20)
+            .map(|h| h.iter().map(|b| format!("{:02X}", b)).collect::<String>())
+            .or_else(|| {
+                Some(name.to_uppercase())
+                    .filter(|n| n.len() == 40 && n.bytes().all(|b| b.is_ascii_hexdigit()))
+            })?;
+        c.insert("thumbprint".to_owned(), json!(thumbprint));
+        Some((cert.not_after, Value::Object(c)))
+    }
+
+    /// A property of a store entry: a run of (id u32, reserved u32, length u32, data).
+    fn store_property(blob: &[u8], id: u32) -> Option<&[u8]> {
+        let mut rest = blob;
+        while rest.len() >= 12 {
+            let field = |i: usize| u32::from_le_bytes([rest[i], rest[i + 1], rest[i + 2], rest[i + 3]]);
+            let (prop, len) = (field(0), field(8) as usize);
+            let data = rest.get(12..12 + len)?;
+            if prop == id {
+                return Some(data);
+            }
+            rest = &rest[12 + len..];
+        }
+        None
+    }
+
+    fn digits_of(text: &str) -> String {
+        text.chars().filter(|c| c.is_ascii_digit()).collect()
+    }
+
+    /// Just enough DER to read an X.509 certificate's names, validity and extensions.
+    mod der {
+        pub struct Certificate<'a> {
+            pub subject_cn: Option<String>,
+            pub issuer_cn: Option<String>,
+            pub not_before: i64,
+            pub not_after: i64,
+            /// The [3] extensions' content; empty when there are none.
+            pub extensions: &'a [u8],
+        }
+
+        /// (tag, content, what follows).
+        fn tlv(data: &[u8]) -> Option<(u8, &[u8], &[u8])> {
+            let (&tag, rest) = data.split_first()?;
+            let (&first, rest) = rest.split_first()?;
+            let (len, rest) = if first < 0x80 {
+                (first as usize, rest)
+            } else {
+                let n = (first & 0x7f) as usize;
+                if n == 0 || n > 4 || rest.len() < n {
+                    return None;
+                }
+                let len = rest[..n].iter().fold(0usize, |len, b| (len << 8) | *b as usize);
+                (len, &rest[n..])
+            };
+            if rest.len() < len {
+                return None;
+            }
+            Some((tag, &rest[..len], &rest[len..]))
+        }
+
+        pub fn parse(der: &[u8]) -> Option<Certificate<'_>> {
+            let (_, cert, _) = tlv(der).filter(|(tag, _, _)| *tag == 0x30)?;
+            let (_, tbs, _) = tlv(cert).filter(|(tag, _, _)| *tag == 0x30)?;
+            // The version, or the serial number when the version is left out.
+            let (tag, _, mut rest) = tlv(tbs)?;
+            if tag == 0xa0 {
+                rest = tlv(rest)?.2; // serial number
+            }
+            let (_, _, rest) = tlv(rest)?; // signature algorithm
+            let (_, issuer, rest) = tlv(rest)?;
+            let (_, validity, rest) = tlv(rest)?;
+            let (_, subject, mut rest) = tlv(rest)?;
+            let (nb_tag, nb, after) = tlv(validity)?;
+            let (na_tag, na, _) = tlv(after)?;
+            let mut extensions: &[u8] = &[];
+            while let Some((tag, content, next)) = tlv(rest) {
+                if tag == 0xa3 {
+                    extensions = content;
+                }
+                rest = next;
+            }
+            Some(Certificate {
+                subject_cn: common_name(subject),
+                issuer_cn: common_name(issuer),
+                not_before: time(nb_tag, nb)?,
+                not_after: time(na_tag, na)?,
+                extensions,
+            })
+        }
+
+        /// The first CN (2.5.4.3) of a Name.
+        fn common_name(name: &[u8]) -> Option<String> {
+            let mut sets = name;
+            while let Some((_, set, next)) = tlv(sets) {
+                let mut atvs = set;
+                while let Some((_, atv, after)) = tlv(atvs) {
+                    if let Some((0x06, oid, value)) = tlv(atv) {
+                        if oid == &[0x55u8, 0x04, 0x03][..] {
+                            let (tag, text, _) = tlv(value)?;
+                            return Some(text_of(tag, text));
+                        }
+                    }
+                    atvs = after;
+                }
+                sets = next;
+            }
+            None
+        }
+
+        fn text_of(tag: u8, bytes: &[u8]) -> String {
+            match tag {
+                // BMPString
+                0x1e => String::from_utf16_lossy(
+                    &bytes
+                        .chunks_exact(2)
+                        .map(|c| u16::from_be_bytes([c[0], c[1]]))
+                        .collect::<Vec<u16>>(),
+                ),
+                // UTF8String
+                0x0c => String::from_utf8_lossy(bytes).into_owned(),
+                // PrintableString, IA5String, T61String: one byte a character.
+                _ => bytes.iter().map(|b| *b as char).collect(),
+            }
+        }
+
+        /// UTCTime "YYMMDDHHMMSSZ" or GeneralizedTime "YYYYMMDDHHMMSSZ", as unix seconds.
+        fn time(tag: u8, bytes: &[u8]) -> Option<i64> {
+            let text = std::str::from_utf8(bytes).ok()?;
+            let (year, rest) = match tag {
+                0x17 => {
+                    let yy: i32 = text.get(..2)?.parse().ok()?;
+                    (if yy >= 50 { 1900 + yy } else { 2000 + yy }, text.get(2..)?)
+                }
+                0x18 => (text.get(..4)?.parse::<i32>().ok()?, text.get(4..)?),
+                _ => return None,
+            };
+            let num = |i: usize| -> Option<u32> { rest.get(i..i + 2)?.parse().ok() };
+            let at = hbb_common::chrono::NaiveDate::from_ymd_opt(year, num(0)?, num(2)?)?
+                .and_hms_opt(num(4)?, num(6)?, num(8).unwrap_or(0))?;
+            Some(at.and_utc().timestamp())
+        }
+
+        /// Where the OID whose encoding starts with `prefix` sits in `data`: (the OID's
+        /// length, the index of its first byte).
+        pub fn find_oid(data: &[u8], prefix: &[u8]) -> Option<(usize, usize)> {
+            (0..data.len().saturating_sub(prefix.len() + 1)).find_map(|i| {
+                let len = data[i + 1] as usize;
+                (data[i] == 0x06
+                    && len >= prefix.len()
+                    && data.get(i + 2..i + 2 + prefix.len()) == Some(prefix))
+                .then_some((len, i + 2))
+            })
+        }
+
+        /// The text of an otherName in the subject alternative name: the OID, then
+        /// [0] { a string }.
+        pub fn other_name(data: &[u8], oid: &[u8]) -> Option<String> {
+            let (len, at) = find_oid(data, oid)?;
+            if len != oid.len() {
+                return None;
+            }
+            let (tag, wrapped, _) = tlv(&data[at + len..])?;
+            if tag != 0xa0 {
+                return None;
+            }
+            let (tag, text, _) = tlv(wrapped)?;
+            Some(text_of(tag, text))
+        }
     }
 
     fn reg_text(key: &RegKey, name: &str) -> Option<String> {
