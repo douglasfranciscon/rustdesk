@@ -488,8 +488,11 @@ mod win {
     /// Health of each physical disk, for the status (22/11/2026, Douglas's call):
     /// Windows' own verdict (MSFT_PhysicalDisk.HealthStatus) and, where the disk reports
     /// them, its reliability counters - temperature, wear, power-on hours, errors. The
-    /// counters need an administrator, which the service is. A card reader with no card
-    /// shows up as a disk of size 0 and is left out.
+    /// counters need an administrator, which the service is, and have to be asked disk by
+    /// disk: a plain SELECT on MSFT_StorageReliabilityCounter returns nothing, even as
+    /// administrator (measured 22/11/2026). Card readers are left out (Douglas,
+    /// 22/11/2026): with a card in, Win32_DiskDrive calls them "Removable Media"; with
+    /// none, they show up as a disk of size 0.
     pub fn disk_health() -> Option<Vec<Value>> {
         let _com = wbem::Com::init();
         let wmi = wbem::Wbem::new();
@@ -497,28 +500,32 @@ mod win {
         let disks = rows(
             wmi,
             STORAGE,
-            "SELECT DeviceId, FriendlyName, HealthStatus, Size FROM MSFT_PhysicalDisk",
-            &["DeviceId", "FriendlyName", "HealthStatus", "Size"],
+            "SELECT __RELPATH, DeviceId, FriendlyName, HealthStatus, Size FROM MSFT_PhysicalDisk",
+            &["__RELPATH", "DeviceId", "FriendlyName", "HealthStatus", "Size"],
         )?;
-        let counters = rows(
+        // Win32_DiskDrive.Index is the same number as MSFT_PhysicalDisk.DeviceId.
+        let removable: Vec<String> = rows(
             wmi,
-            STORAGE,
-            "SELECT DeviceId, Temperature, Wear, PowerOnHours, ReadErrorsTotal, WriteErrorsTotal \
-             FROM MSFT_StorageReliabilityCounter",
-            &[
-                "DeviceId",
-                "Temperature",
-                "Wear",
-                "PowerOnHours",
-                "ReadErrorsTotal",
-                "WriteErrorsTotal",
-            ],
+            CIMV2,
+            "SELECT Index, MediaType FROM Win32_DiskDrive",
+            &["Index", "MediaType"],
         )
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .iter()
+        .filter(|d| {
+            d.text("MediaType")
+                .map_or(false, |m| m.to_lowercase().contains("removable"))
+        })
+        .filter_map(|d| d.text("Index"))
+        .collect();
         Some(
             disks
                 .iter()
                 .filter(|d| d.number("Size").unwrap_or(0) > 0)
+                .filter(|d| {
+                    d.text("DeviceId")
+                        .map_or(true, |id| !removable.contains(&id))
+                })
                 .map(|d| {
                     let mut m = Map::new();
                     put(&mut m, "modelo", d.text("FriendlyName"));
@@ -530,11 +537,25 @@ mod win {
                         _ => None,
                     };
                     put(&mut m, "saude", saude.map(str::to_owned));
-                    let device = d.text("DeviceId");
-                    if let Some(c) = counters
-                        .iter()
-                        .find(|c| device.is_some() && c.text("DeviceId") == device)
-                    {
+                    let counters = d.text("__RELPATH").and_then(|path| {
+                        rows(
+                            wmi,
+                            STORAGE,
+                            &format!(
+                                "ASSOCIATORS OF {{{}}} \
+                                 WHERE ResultClass = MSFT_StorageReliabilityCounter",
+                                path
+                            ),
+                            &[
+                                "Temperature",
+                                "Wear",
+                                "PowerOnHours",
+                                "ReadErrorsTotal",
+                                "WriteErrorsTotal",
+                            ],
+                        )
+                    });
+                    if let Some(c) = counters.as_ref().and_then(|list| list.first()) {
                         if let Some(t) = c.number("Temperature").filter(|t| *t > 0 && *t < 150) {
                             m.insert("temperatura_c".to_owned(), json!(t));
                         }
@@ -1025,7 +1046,7 @@ mod win {
                             .Get(PCWSTR(name.as_ptr()), 0, &mut value, None, None)
                             .is_ok()
                         {
-                            let texts = texts_of(&value);
+                            let texts = texts_of(&value, prop.starts_with("__"));
                             if !texts.is_empty() {
                                 row.0.insert((*prop).to_owned(), texts);
                             }
@@ -1039,7 +1060,9 @@ mod win {
         }
 
         /// A property's value as texts: none for empty or null, several for a list.
-        unsafe fn texts_of(value: &VARIANT) -> Vec<String> {
+        /// `whole` keeps a long text uncut - an object path (__RELPATH) runs past
+        /// MAX_TEXT and is no use clipped.
+        unsafe fn texts_of(value: &VARIANT, whole: bool) -> Vec<String> {
             let vt = value.Anonymous.Anonymous.vt;
             let mut out = Vec::new();
             if vt.0 == VT_EMPTY.0 || vt.0 == VT_NULL.0 {
@@ -1060,11 +1083,17 @@ mod win {
                     }
                     CoTaskMemFree(Some(items as *const _));
                 }
-            } else if let Ok(text) = VariantToStringAlloc(value) {
-                if let Some(text) = text.to_string().ok().as_deref().and_then(clip) {
+            } else if let Ok(raw) = VariantToStringAlloc(value) {
+                let text = raw.to_string().ok();
+                let text = if whole {
+                    text.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
+                } else {
+                    text.as_deref().and_then(clip)
+                };
+                if let Some(text) = text {
                     out.push(text);
                 }
-                CoTaskMemFree(Some(text.0 as *const _));
+                CoTaskMemFree(Some(raw.0 as *const _));
             }
             out
         }
