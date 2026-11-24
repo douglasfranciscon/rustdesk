@@ -115,10 +115,16 @@ async fn start_hbbs_sync_async() {
                 }
                 // CUSTOM BRANDING: keep this machine registered in its brand's catalog.
                 // Self-throttled (a look a minute, a POST only when something changed).
-                catalog.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                // Not the attended-support copy: its ID is not the machine's, and a
+                // catalog entry would let the catalog in without the on-screen password.
+                if !crate::common::is_support_copy() {
+                    catalog.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                }
                 // CUSTOM BRANDING: status every 3 h, inventory when it changed, and the
                 // "seen" of alerts already shown. Each one self-throttled.
-                inventory.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                if !crate::common::is_support_copy() {
+                    inventory.tick(url.trim_end_matches("/api/heartbeat"), &id).await;
+                }
                 alerts.flush(url.trim_end_matches("/api/heartbeat"), &id).await;
                 let conns = Connection::alive_conns();
                 if info_uploaded.uploaded && (url != info_uploaded.url || id != info_uploaded.id) {

@@ -3087,8 +3087,13 @@ String getWindowNameWithId(String id, {WindowType? overrideType}) {
 /// "BR Remote - Invicta" on a build made with the brand folder "invicta".
 /// Display only: APP_NAME, the service and the install folder never change.
 String get appTitleWithBrand {
-  if (kBrandFolder.isEmpty) return kAppDisplayName;
-  return '$kAppDisplayName - '
+  // The attended-support copy (BRRemote-Suporte.exe) runs as "BRRemoteSuporte"
+  // (is_support_copy in common.rs).
+  final name = bind.mainGetAppNameSync() == 'BRRemoteSuporte'
+      ? '$kAppDisplayName Suporte'
+      : kAppDisplayName;
+  if (kBrandFolder.isEmpty) return name;
+  return '$name - '
       '${kBrandFolder[0].toUpperCase()}${kBrandFolder.substring(1)}';
 }
 

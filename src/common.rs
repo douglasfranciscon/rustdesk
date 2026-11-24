@@ -1013,6 +1013,8 @@ pub fn get_display_name() -> String {
     let app_name = get_app_name();
     if app_name == "BRRemote" {
         "BR Remote".to_owned()
+    } else if app_name == SUPPORT_APP_NAME {
+        "BR Remote Suporte".to_owned()
     } else {
         app_name
     }
@@ -2232,28 +2234,71 @@ pub fn apply_brand_builtin_settings() {
         builtin.insert(key.to_owned(), "Y".to_owned());
     }
     drop(builtin);
-    // CUSTOM BRANDING: a copy whose file name has "Suporte" in it (BRRemote-Suporte.exe)
-    // is for attended support: it is online only while the user keeps it open, and it
-    // never installs (Douglas, 24/11/2026). Upstream's disable-installation does the
-    // rest: no install card, and --install / --silent-install are dropped, so even
-    // renaming it to "...-install.exe" does not install.
     #[cfg(windows)]
     if is_support_copy() {
-        config::HARD_SETTINGS
-            .write()
-            .unwrap()
-            .insert("disable-installation".to_owned(), "Y".to_owned());
+        apply_support_copy();
     }
 }
 
-/// CUSTOM BRANDING: the portable wrapper hands its own file name over in
-/// RUSTDESK_APPNAME (libs/portable/src/main.rs), and the processes the app starts
-/// inherit it.
+/// CUSTOM BRANDING: the folder a "...Suporte....exe" unpacks into (libs/portable),
+/// and the APP_NAME that copy runs under.
+pub const SUPPORT_APP_NAME: &str = "BRRemoteSuporte";
+
+/// CUSTOM BRANDING: BRRemote-Suporte.exe is for attended support (Douglas,
+/// 24/11/2026): online only while the user keeps it open, never installed, and
+/// independent of any BR Remote installed on the machine, whatever its brand or
+/// password settings. The portable wrapper unpacks it into its own folder, so every
+/// process of it - the elevated portable service included - knows by its path.
+pub fn is_support_copy() -> bool {
+    #[cfg(windows)]
+    {
+        static SUPPORT: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        return *SUPPORT.get_or_init(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|exe| {
+                    exe.parent()
+                        .and_then(|dir| dir.file_name())
+                        .map(|name| name.to_string_lossy().eq_ignore_ascii_case(SUPPORT_APP_NAME))
+                })
+                .unwrap_or(false)
+        });
+    }
+    #[cfg(not(windows))]
+    return false;
+}
+
+/// CUSTOM BRANDING: its own APP_NAME gives the support copy its own config folder,
+/// IPC pipes and window, so it neither talks to an installed service (which refuses
+/// a client running from another folder) nor takes over its window. Its own ID too:
+/// the installed one comes from the MAC, and two registrations of one ID would
+/// fight on the server. Then upstream's disable-installation: no install card, and
+/// --install / --silent-install are dropped, even for a "...-install.exe" name.
+/// Must run before anything reads the config.
 #[cfg(windows)]
-fn is_support_copy() -> bool {
-    std::env::var(PORTABLE_APPNAME_RUNTIME_ENV_KEY)
-        .map(|name| name.to_lowercase().contains("suporte"))
-        .unwrap_or(false)
+fn apply_support_copy() {
+    *config::APP_NAME.write().unwrap() = SUPPORT_APP_NAME.to_owned();
+    config::HARD_SETTINGS
+        .write()
+        .unwrap()
+        .insert("disable-installation".to_owned(), "Y".to_owned());
+    if config::Config::get_id_or(String::new()).is_empty() {
+        config::Config::set_id(&support_id());
+    }
+}
+
+/// The same number on every run on this machine, from its machine id, in
+/// 600000000-999999999: above every MAC-derived ID (at most 0x1FFFFFFF) and below
+/// the 10-digit ones.
+#[cfg(windows)]
+fn support_id() -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(SUPPORT_APP_NAME.as_bytes());
+    hasher.update(hbb_common::get_uuid());
+    let digest = hasher.finalize();
+    let n = u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]) % 400_000_000;
+    (600_000_000 + n).to_string()
 }
 
 pub fn read_custom_client(config: &str) {

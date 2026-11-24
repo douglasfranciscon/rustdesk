@@ -200,6 +200,18 @@ fn without_copy_number(name: &str) -> String {
     format!("{}.exe", stem[..open].trim_end())
 }
 
+/// CUSTOM BRANDING: BRRemote-Suporte.exe (any name with "suporte") unpacks into a
+/// folder of its own, which is how the app inside knows it is the attended-support
+/// copy (24/11/2026). Keep the folder name in step with SUPPORT_APP_NAME in
+/// src/common.rs.
+fn support_dir(exe: &str) -> Option<PathBuf> {
+    let name = Path::new(exe).file_name()?.to_string_lossy().to_lowercase();
+    if !name.contains("suporte") {
+        return None;
+    }
+    dirs::data_local_dir().map(|dir| dir.join("BRRemoteSuporte"))
+}
+
 fn main() {
     let mut args = Vec::new();
     let mut arg_exe = Default::default();
@@ -222,7 +234,7 @@ fn main() {
     let reader = BinaryReader::default();
     if let Some(exe) = setup(
         reader,
-        None,
+        support_dir(&arg_exe),
         click_setup || args.contains(&"--silent-install".to_owned()),
         &args,
         &mut ui,
