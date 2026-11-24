@@ -2274,14 +2274,23 @@ pub fn is_support_copy() -> bool {
 /// the installed one comes from the MAC, and two registrations of one ID would
 /// fight on the server. Then upstream's disable-installation: no install card, and
 /// --install / --silent-install are dropped, even for a "...-install.exe" name.
+/// No account either (Douglas, 24/11/2026): an attendant logging in here would
+/// have the back record this ID as his PC's. disable-account also lifts the login
+/// check on outgoing sessions (client.rs), so the copy is incoming-only, as the
+/// 32-bit build: it can only be reached, never reach out without a licence.
 /// Must run before anything reads the config.
 #[cfg(windows)]
 fn apply_support_copy() {
     *config::APP_NAME.write().unwrap() = SUPPORT_APP_NAME.to_owned();
-    config::HARD_SETTINGS
-        .write()
-        .unwrap()
-        .insert("disable-installation".to_owned(), "Y".to_owned());
+    let mut hard = config::HARD_SETTINGS.write().unwrap();
+    for (key, value) in [
+        ("disable-installation", "Y"),
+        ("disable-account", "Y"),
+        ("conn-type", "incoming"),
+    ] {
+        hard.insert(key.to_owned(), value.to_owned());
+    }
+    drop(hard);
     if config::Config::get_id_or(String::new()).is_empty() {
         config::Config::set_id(&support_id());
     }
