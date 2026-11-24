@@ -2291,7 +2291,11 @@ fn apply_support_copy() {
         hard.insert(key.to_owned(), value.to_owned());
     }
     drop(hard);
-    if config::Config::get_id_or(String::new()).is_empty() {
+    // Loading an empty config already generates the MAC-derived ID - the installed
+    // app's - so replace any ID below the support range. One the server handed out
+    // after a UUID_MISMATCH has 10 digits and stays.
+    let id = config::Config::get_id();
+    if id.parse::<u64>().map_or(true, |n| n < 600_000_000) {
         config::Config::set_id(&support_id());
     }
 }
