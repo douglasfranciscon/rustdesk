@@ -2231,6 +2231,29 @@ pub fn apply_brand_builtin_settings() {
     ] {
         builtin.insert(key.to_owned(), "Y".to_owned());
     }
+    drop(builtin);
+    // CUSTOM BRANDING: a copy whose file name has "Suporte" in it (BRRemote-Suporte.exe)
+    // is for attended support: it is online only while the user keeps it open, and it
+    // never installs (Douglas, 24/11/2026). Upstream's disable-installation does the
+    // rest: no install card, and --install / --silent-install are dropped, so even
+    // renaming it to "...-install.exe" does not install.
+    #[cfg(windows)]
+    if is_support_copy() {
+        config::HARD_SETTINGS
+            .write()
+            .unwrap()
+            .insert("disable-installation".to_owned(), "Y".to_owned());
+    }
+}
+
+/// CUSTOM BRANDING: the portable wrapper hands its own file name over in
+/// RUSTDESK_APPNAME (libs/portable/src/main.rs), and the processes the app starts
+/// inherit it.
+#[cfg(windows)]
+fn is_support_copy() -> bool {
+    std::env::var(PORTABLE_APPNAME_RUNTIME_ENV_KEY)
+        .map(|name| name.to_lowercase().contains("suporte"))
+        .unwrap_or(false)
 }
 
 pub fn read_custom_client(config: &str) {

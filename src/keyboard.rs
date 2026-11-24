@@ -188,6 +188,16 @@ pub mod client {
             Ok(()) => {
                 *started = false;
                 GRAB_PAUSED.store(true, Ordering::SeqCst);
+                // Releases happening while the hook is out are never seen, so a key
+                // held when the last session closed would stay "down" for the next one
+                // (raised in review of rustdesk#17209, 23/11/2026).
+                for down in MODIFIERS_STATE.lock().unwrap().values_mut() {
+                    *down = false;
+                }
+                TO_RELEASE.lock().unwrap().clear();
+                unsafe {
+                    IS_0X021D_DOWN = false;
+                }
                 log::info!("keyboard hook removed: no remote session left");
             }
             Err(err) => log::error!("failed to remove the keyboard hook: {:?}", err),

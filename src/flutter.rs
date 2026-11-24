@@ -2130,9 +2130,14 @@ pub mod sessions {
         update_session_count_to_server();
         // CUSTOM BRANDING: no remote session left - take the keyboard hook out, so it
         // stops swallowing this PC's accents (keyboard.rs, client::pause_grab_loop).
+        // Keep the guard while pausing, so insert_session cannot run in between and
+        // miss the resume (rustdesk#17209 review).
         #[cfg(windows)]
-        if SESSIONS.read().unwrap().is_empty() {
-            crate::keyboard::client::pause_grab_loop();
+        {
+            let sessions = SESSIONS.read().unwrap();
+            if sessions.is_empty() {
+                crate::keyboard::client::pause_grab_loop();
+            }
         }
         s
     }

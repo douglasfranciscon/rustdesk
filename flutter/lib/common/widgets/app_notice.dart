@@ -78,8 +78,11 @@ Future<void> checkAppNotice() async {
     await bind.mainSetLocalOption(key: _kLicenceShownKey, value: _isoDay(_today()));
     await _showMessage('Licença', licence);
   }
-  // An unstamped (local) build has no date to compare: never nag it.
+  // An unstamped (local) build has no date to compare: never nag it. A copy that
+  // must not install (BRRemote-Suporte.exe) is not offered the download either:
+  // it brings the -install.exe, which would install the regular app.
   if (base.isNotEmpty &&
+      !bind.isDisableInstallation() &&
       _brVersionShape.hasMatch(version) &&
       _brVersionShape.hasMatch(kBrVersion) &&
       kBrVersion.compareTo(version) < 0 &&
