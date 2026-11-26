@@ -149,7 +149,10 @@ async fn start_hbbs_sync_async() {
                 let sys_username = v["username"].as_str().unwrap_or_default().to_string();
                 // Though the username comparison is only necessary on Windows,
                 // we still keep the comparison on other platforms for consistency.
-                let need_upload = (!info_uploaded.uploaded || info_uploaded.username.as_ref() != Some(&sys_username)) &&
+                // CUSTOM BRANDING: never from the attended-support copy - the support may be
+                // a one-off, so nothing about the machine is sent, only the heartbeat.
+                let need_upload = !crate::common::is_support_copy() &&
+                    (!info_uploaded.uploaded || info_uploaded.username.as_ref() != Some(&sys_username)) &&
                     info_uploaded.last_uploaded.map(|x| x.elapsed() >= UPLOAD_SYSINFO_TIMEOUT).unwrap_or(true);
                 if need_upload {
                     v["version"] = json!(crate::VERSION);
