@@ -981,6 +981,9 @@ class LegacyAb extends BaseAb {
   bool get emtpy => peers.isEmpty && tags.isEmpty;
   // licensedDevices is obtained from personal ab, shared ab restrict it in server
   var licensedDevices = 0;
+  // CUSTOM BRANDING: ids whose note is known - read from the API's last pull or edited
+  // since. Only these send "note" (see _serialize).
+  final Set<String> _notesKnown = {};
 
   LegacyAb();
 
@@ -1165,10 +1168,17 @@ class LegacyAb extends BaseAb {
     return await pushAb();
   }
 
+  // CUSTOM BRANDING: upstream left this empty, so "Edit note" showed in the menu and
+  // saved nothing. The note now travels with the rest of the book, like the alias.
   @override
   Future<bool> changeNote({required String id, required String note}) async {
-    // no need to implement
-    return false;
+    final it = peers.where((element) => element.id == id);
+    if (it.isEmpty) {
+      return false;
+    }
+    it.first.note = note;
+    _notesKnown.add(id);
+    return await pushAb();
   }
 
   @override
@@ -1315,8 +1325,16 @@ class LegacyAb extends BaseAb {
 // #endregion
 
   Map<String, dynamic> _serialize() {
-    final peersJsonData =
-        peers.map((e) => e.toCustomJson(includingHash: true)).toList();
+    // CUSTOM BRANDING: a peer carries its note ("" = cleared) only when the note is
+    // known. Without the key the API keeps what it has, so a book loaded from the
+    // local cache (which holds no notes) cannot wipe them, nor can an older app.
+    final peersJsonData = peers.map((e) {
+      final peerJson = e.toCustomJson(includingHash: true);
+      if (_notesKnown.contains(e.id)) {
+        peerJson['note'] = e.note;
+      }
+      return peerJson;
+    }).toList();
     for (var e in tags) {
       if (tagColors[e] == null) {
         tagColors[e] = str2color2(e, existing: tagColors.values.toList()).value;
@@ -1336,12 +1354,16 @@ class LegacyAb extends BaseAb {
     tags.clear();
     tagColors.clear();
     peers.clear();
+    _notesKnown.clear();
     if (data['tags'] is List) {
       tags.value = (data['tags'] as List).map((e) => e.toString()).toList();
     }
     if (data['peers'] is List) {
       for (final peer in data['peers']) {
         peers.add(Peer.fromJson(peer));
+        if (peer is Map && peer.containsKey('note')) {
+          _notesKnown.add(peer['id'].toString());
+        }
       }
     }
     if (isFull()) {

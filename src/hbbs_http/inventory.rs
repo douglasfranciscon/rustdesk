@@ -581,8 +581,11 @@ mod win {
                         if let Some(t) = c.number("Temperature").filter(|t| *t > 0 && *t < 150) {
                             m.insert("temperatura_c".to_owned(), json!(t));
                         }
-                        if let Some(w) = c.number("Wear").filter(|w| *w <= 100) {
-                            m.insert("desgaste_pct".to_owned(), json!(w));
+                        // An NVMe drive past its rated endurance reports more than 100
+                        // (up to 255): that is the most worn disk, so cap it at 100
+                        // instead of dropping it.
+                        if let Some(w) = c.number("Wear") {
+                            m.insert("desgaste_pct".to_owned(), json!(w.min(100)));
                         }
                         for (prop, key) in [
                             ("PowerOnHours", "horas_ligado"),

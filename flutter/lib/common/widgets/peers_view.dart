@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:dynamic_layouts/dynamic_layouts.dart';
 import 'package:flutter/foundation.dart';
@@ -89,12 +88,6 @@ class _PeersView extends StatefulWidget {
 class _PeersViewState extends State<_PeersView>
     with WindowListener, WidgetsBindingObserver {
   static const int _maxQueryCount = 3;
-  final HashMap<String, String> _emptyMessages = HashMap.from({
-    LoadEvent.recent: 'empty_recent_tip',
-    LoadEvent.favorite: 'empty_favorite_tip',
-    LoadEvent.lan: 'empty_lan_tip',
-    LoadEvent.addressBook: 'empty_address_book_tip',
-  });
   final space = (isDesktop || isWebDesktop) ? 12.0 : 8.0;
   final _curPeers = <String>{};
   var _lastChangeTime = DateTime.now();
@@ -187,27 +180,9 @@ class _PeersViewState extends State<_PeersView>
       child: Consumer<Peers>(builder: (context, peers, child) {
         if (peers.peers.isEmpty) {
           gFFI.peerTabModel.setCurrentTabCachedPeers([]);
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.sentiment_very_dissatisfied_rounded,
-                  color: Theme.of(context).tabBarTheme.labelColor,
-                  size: 40,
-                ).paddingOnly(bottom: 10),
-                Text(
-                  translate(
-                    _emptyMessages[widget.peers.loadEvent] ?? 'Empty',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).tabBarTheme.labelColor,
-                  ),
-                ),
-              ],
-            ),
-          );
+          // CUSTOM BRANDING: an empty list shows nothing - no sad face, no "Oops"
+          // text, also while the list is still loading.
+          return const SizedBox.shrink();
         } else {
           return _buildPeersView(peers);
         }
