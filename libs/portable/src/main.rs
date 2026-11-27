@@ -202,11 +202,12 @@ fn without_copy_number(name: &str) -> String {
 
 /// CUSTOM BRANDING: BRRemote-Suporte.exe (any name with "suporte") unpacks into a
 /// folder of its own, which is how the app inside knows it is the attended-support
-/// copy (24/11/2026). Keep the folder name in step with SUPPORT_APP_NAME in
-/// src/common.rs.
+/// copy (24/11/2026). "convidado" is the same copy under its other name (Douglas,
+/// 27/11/2026): same folder, so same app and ID. Keep the folder name in step with
+/// SUPPORT_APP_NAME in src/common.rs.
 fn support_dir(exe: &str) -> Option<PathBuf> {
     let name = Path::new(exe).file_name()?.to_string_lossy().to_lowercase();
-    if !name.contains("suporte") {
+    if !name.contains("suporte") && !name.contains("convidado") {
         return None;
     }
     dirs::data_local_dir().map(|dir| dir.join("BRRemoteSuporte"))
